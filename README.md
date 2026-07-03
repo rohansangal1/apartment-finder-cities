@@ -1,138 +1,164 @@
 # Nester — apartment recommendation app
-Deployed website link: https://apartment-finder-cities.vercel.app/
-Helps people find apartments in big cities without the overwhelm. Enter your
-situation (city, work, budget, priorities) and get a **ranked list** of tailored
-recommendations with **match scores** and **ratings**. Nester is a
-discovery/aggregator layer — it does **not** host listings or handle
-transactions; every recommendation links out to its source.
 
-The app is a React + TypeScript SPA fronted by a dark, editorial landing page
-(hero + apartment carousel + address autocomplete). All three phases are built
-and layered additively:
+**Live site:** https://apartment-finder-cities.vercel.app/
 
-- **Phase 0** — SPA with mock data, deployable as a static site.
-- **Phase 1** — real provider APIs behind serverless functions (`api/`).
-- **Phase 2** — Supabase accounts, saved listings, and first-party reviews.
+Nester helps people find apartments in big cities without the overwhelm. You
+enter your situation — city, where you work, budget, and what you care about —
+and get a **ranked list** of tailored recommendations, each with a **match
+score**, **ratings**, and a plain-English reason it matched.
 
-Each later phase turns on with config/keys, not a rewrite — see the phase
-sections below.
+Nester is a discovery/aggregator layer: it does **not** host listings or handle
+transactions. Every recommendation links out to its original source.
 
-## Quick start
+## What it does
+
+- **Situation-based search** — tell it your city, commute, budget, and
+  priorities instead of scrolling endless filters.
+- **Match scores** — each listing gets a 0–100 score blending price, commute,
+  rating, and space, weighted by what *you* said matters most.
+- **Accounts (optional)** — sign in with Google or email/password to save
+  listings, store default preferences, and write first-party reviews.
+- **Guest mode** — everything works without an account; your saved listings and
+  preferences are kept in the browser.
+
+## How it works
+
+The app has three layers, each swappable via configuration:
+
+1. **The SPA** (`src/`) — a React + TypeScript single-page app with a dark,
+   editorial landing page (hero, apartment carousel, address autocomplete).
+2. **The API** (`api/`) — Vercel serverless functions that talk to real
+   providers (listings, geocoding, commute, ratings) with caching, per-IP rate
+   limiting, and a daily-budget circuit breaker.
+3. **Storage** (`supabase/`) — Supabase (Postgres + Auth + Row-Level Security)
+   for accounts, saved listings, and reviews.
+
+**The one rule:** the UI never calls an external data source directly. It only
+imports from `src/lib/data-client`, which picks its implementation from an
+environment variable. Running against mock fixtures vs. live provider APIs is a
+**config change**, not a rewrite — the `DataClient` interface in `types.ts` is
+the contract, and the compiler enforces that every implementation matches.
+
+## Getting started (contributors)
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- A Supabase project and provider API keys are **only** needed if you want to
+  run against live data or accounts. By default the app runs entirely on
+  in-browser mock fixtures — no keys, no backend.
+
+### Run it locally
 
 ```bash
+git clone https://github.com/rohansangal1/apartment-finder-cities.git
+cd apartment-finder
 npm install
 npm run dev        # http://localhost:5173
-npm run typecheck  # tsc project-references check, no emit
-npm run build      # tsc -b && vite build into dist/
-npm run preview    # preview the production build
 ```
 
-## Architecture
+That's it — the app boots with mock data and guest-mode storage.
+
+### Useful scripts
+
+```bash
+npm run dev        # Vite dev server at http://localhost:5173
+npm run typecheck  # tsc project-references check (app + api), no emit
+npm run build      # tsc -b && vite build → dist/
+npm run preview    # preview the production build locally
+```
+
+### Environment variables
+
+Copy `.env.example` to `.env.local` and fill in only what you need. Everything
+is optional — leave a section blank and that feature falls back gracefully
+(mock data / guest mode / in-memory cache).
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_DATA_SOURCE` | `mock` (default, in-browser fixtures) or `api` (call `/api`) |
+| `RENTCAST_API_KEY` | Listings provider (server-side only) |
+| `GOOGLE_MAPS_API_KEY` | Geocoding, Routes (commute), Places (ratings) — one key, three APIs enabled |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | Shared cache + rate limiter for production |
+| `DAILY_BUDGET_USD`, `RATE_LIMIT_*` | Circuit breaker + rate-limit tuning |
+| `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` | Enable accounts, saved listings, reviews |
+
+> Anything prefixed `VITE_` is bundled into the browser and must be safe to
+> expose. Provider secrets (RentCast, Google) are **server-side only** — never
+> prefix them with `VITE_`.
+
+To run the serverless functions locally, use `vercel dev` instead of
+`npm run dev` (the functions in `api/` run on Vercel's runtime).
+
+### Enabling live data
+
+1. Add `RENTCAST_API_KEY` and `GOOGLE_MAPS_API_KEY` (in Vercel project settings,
+   or `.env` for local `vercel dev`).
+2. Set `VITE_DATA_SOURCE=api`.
+3. Deploy, or run `vercel dev`.
+
+No view or component changes are needed — `api-client.ts` satisfies the same
+`DataClient` interface as the mock client, and the server reuses the same
+`scoring.ts`. See [`api/README.md`](api/README.md) for endpoint details.
+
+### Enabling accounts (Supabase)
+
+Follow [`supabase/README.md`](supabase/README.md): apply the SQL migrations,
+configure Google OAuth, and set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`.
+With no Supabase env vars, the app stays in guest mode (localStorage).
+
+## Project structure
 
 ```
 src/
   lib/
     data-client/        ← the ONLY boundary to external data
       index.ts          ← picks impl by VITE_DATA_SOURCE (mock | api)
-      mock-client.ts    ← Phase 0 in-browser fixtures
-      api-client.ts     ← Phase 1: calls /api, same DataClient interface
+      mock-client.ts    ← in-browser fixtures
+      api-client.ts     ← calls /api, same DataClient interface
     mock-data/          ← listings, reviews, geo fixtures
-    user-data/          ← per-user persistence (local-store | supabase-store + types)
+    user-data/          ← per-user persistence (local-store | supabase-store)
     scoring.ts          ← pure match-scoring engine (scoreListing, weights, why)
-    search-service.ts   ← orchestration (lifts into POST /api/search later)
+    search-service.ts   ← search orchestration
     supabase.ts         ← Supabase client (guest mode when env vars absent)
     types.ts            ← shared data model (interfaces + DataClient contract)
     format.ts           ← display + graceful link-rot fallback helpers
   context/
     search-context.tsx     ← criteria, results, saved IDs
-    auth-context.tsx       ← Supabase Google sign-in
+    auth-context.tsx       ← Supabase Google + email/password sign-in
     user-data-context.tsx  ← picks local vs Supabase UserStore
   components/           ← layout, listing-card, match-score, rating, tag,
                           address-autocomplete, apartment-carousel,
                           save-button, review-form
   views/                ← input-view, results-view, detail-view,
                           saved-view, account-view
-api/                    ← Phase 1 serverless functions (search, geocode, commute, rating)
-supabase/               ← Phase 2 SQL migrations + setup guide
+api/                    ← serverless functions (search, geocode, commute, rating)
+supabase/               ← SQL migrations + setup guide
 ```
-
-### The one rule
-
-The UI never calls an external source directly — it only imports from
-`src/lib/data-client`. Going live is a **config change** (`VITE_DATA_SOURCE=api`),
-not a rewrite. The `DataClient` interface in `types.ts` is the contract every
-implementation must satisfy — the compiler enforces that `api-client.ts` matches
-`mock-client.ts` exactly.
-
-## Data interfaces (mock now → production target)
-
-| Need | Now | Production target |
-|------|-----|-------------------|
-| `getListings(criteria)` | mock | RentCast (free tier) |
-| `getCommute(origin, dest, mode)` | mock (haversine) | TravelTime (transit-aware) → Google Routes |
-| `getRating(building)` | mock blend | Google Places/Yelp → first-party reviews |
-| `geocode(address)` | mock | TravelTime / Google / Nominatim |
 
 ## Match scoring
 
 `scoreListing(listing, criteria, commuteMinutes)` in `src/lib/scoring.ts`
 computes four 0–100 sub-scores (price, commute, rating, space), combines them by
 the user's normalized priority weights, and clamps to 0–100. `explainMatch()`
-turns the top sub-scores into the "why it matched" line. Unknown ratings sit at a
-neutral 60, never zero; missing data is never fabricated.
+turns the top sub-scores into the "why it matched" line. Unknown ratings sit at
+a neutral 60, never zero; missing data is never fabricated.
 
-## Built for the realities
+## Design notes
 
 - **Cold start:** the schema supports first-party reviews from day one; the
   rating blend shifts weight toward verified residents as their count grows.
-- **Link rot:** `resolveListingUrl()` degrades a stale/missing deep link to a
+- **Link rot:** `resolveListingUrl()` degrades a stale or missing deep link to a
   source-site search URL — never a dead link.
-- **Constraints are explicit:** listing-metadata access and rating coverage are
-  the real limits; they're stubbed behind clean interfaces so real sources drop
-  in without touching the UI.
+- **Saved listings survive churn:** each save stores a full listing snapshot
+  (JSON), so the Saved page renders from stored data even after external
+  listings disappear.
+- **Explicit constraints:** listing-metadata access and rating coverage are the
+  real limits; they sit behind clean interfaces so real sources drop in without
+  touching the UI.
 
-## Deploy (Phase 0)
+## Deployment
 
-Static site on Vercel or Netlify. `vercel.json` includes the SPA rewrite. No
-secrets, nothing to persist.
-
-## Phase 1 — real APIs (built, needs keys)
-
-The serverless layer is implemented in [`api/`](api/README.md): `POST /api/search`
-(orchestration) plus `/api/geocode`, `/api/commute`, `/api/rating`, with caching,
-per-IP rate limiting, and a daily budget circuit breaker. Providers: RentCast
-(listings), TravelTime (geocode + commute), Google Places (ratings).
-
-To switch the app from mock → live:
-
-1. Add the provider keys in Vercel project settings (see `.env.example`).
-2. Set `VITE_DATA_SOURCE=api`.
-3. Deploy (or run `vercel dev` locally).
-
-No view/component changes — `api-client.ts` satisfies the same `DataClient`
-interface as `mock-client.ts`, and the server reuses the same `scoring.ts`.
-
-See [`api/README.md`](api/README.md) for endpoint details.
-
-## Phase 2 — accounts, saved, reviews (built, needs Supabase)
-
-Auth + per-user persistence via Supabase (Postgres + Google Auth + RLS):
-
-- **Google sign-in** — `AuthContext` wraps `supabase.auth.signInWithOAuth`.
-- **Saved listings & default preferences** — persisted per user; returning users
-  skip re-entering their situation. Each save stores a **full listing snapshot**
-  (JSON), so the Saved page renders straight from stored data and survives
-  listing churn — external listings are ephemeral and can't be re-fetched by id
-  (see migration `0002_saved_snapshot.sql`).
-- **First-party reviews** — read + write, gated behind sign-in; `lived_here`
-  verified reviews are the trust moat.
-- **Row-Level Security** — users touch only their own rows; reviews stay public.
-
-It's all behind a `UserStore` interface with two implementations
-([local-store](src/lib/user-data/local-store.ts) for guests,
-[supabase-store](src/lib/user-data/supabase-store.ts) for signed-in users), chosen
-by [user-data-context](src/context/user-data-context.tsx). With no Supabase env vars,
-the app runs in **guest mode** (localStorage) — exactly like Phase 0/1.
-
-To enable: follow [`supabase/README.md`](supabase/README.md) (apply the SQL
-schema, configure Google OAuth, set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`).
+Deployed on Vercel. `vercel.json` includes the SPA rewrite. The static SPA needs
+no secrets; live data and accounts turn on by adding the env vars above in the
+Vercel project settings.

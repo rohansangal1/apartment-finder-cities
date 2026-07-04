@@ -72,9 +72,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) throw new Error('Auth is not configured.');
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      // Return to the exact page they signed in from (Supabase strips the OAuth
-      // params on the way back via detectSessionInUrl).
-      options: { redirectTo: window.location.href },
+      options: {
+        // Return to the exact page they signed in from (Supabase strips the OAuth
+        // params on the way back via detectSessionInUrl).
+        redirectTo: window.location.href,
+        // Force Google's account chooser every time. Without this, Google
+        // silently reuses the last session, so after signing out "Continue with
+        // Google" drops you straight back into the same account.
+        queryParams: { prompt: 'select_account' },
+      },
     });
   }, []);
 

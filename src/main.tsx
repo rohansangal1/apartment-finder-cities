@@ -5,6 +5,7 @@ import App from './app';
 import { AuthProvider } from './context/auth-context';
 import { UserDataProvider } from './context/user-data-context';
 import { SearchProvider } from './context/search-context';
+import { CompareProvider } from './context/compare-context';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
@@ -13,7 +14,9 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
       <AuthProvider>
         <UserDataProvider>
           <SearchProvider>
-            <App />
+            <CompareProvider>
+              <App />
+            </CompareProvider>
           </SearchProvider>
         </UserDataProvider>
       </AuthProvider>

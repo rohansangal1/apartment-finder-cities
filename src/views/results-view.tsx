@@ -1,8 +1,17 @@
-import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useSearch } from '../context/search-context';
+import { useMediaQuery } from '../lib/use-media-query';
+import type { ScoredListing } from '../lib/types';
 import { SORTERS } from '../lib/search-service';
 import ListingCard from '../components/listing-card';
+import ListingSkeleton from '../components/listing-skeleton';
+import CompareToggle from '../components/compare-toggle';
+import ResultsFilters, {
+  EMPTY_FILTERS,
+  matchesFilters,
+  type ResultFilters,
+} from '../components/results-filters';
 
 // Leaflet is heavy (~150 kB) and only needed when the user opens the map, so
 // load it on demand to keep the initial bundle lean.
@@ -19,13 +28,31 @@ export default function ResultsView() {
   const { results, status, error, hasSearched, criteria } = useSearch();
   const [sort, setSort] = useState('match');
   const [view, setView] = useState<'list' | 'map'>('list');
+  const [filters, setFilters] = useState<ResultFilters>(EMPTY_FILTERS);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  // ≥1024px gets a permanent split list+map instead of the mobile list/map toggle.
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  // Card element refs, so a map pin hover can scroll its card into view.
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
+
+  // A fresh search invalidates the old refinements — start clean each result set.
+  useEffect(() => {
+    setFilters(EMPTY_FILTERS);
+  }, [results]);
 
   const sorted = useMemo(() => {
-    const arr = [...results];
-    // Commute sort is meaningless for remote searches; fall back to match.
+    // Refine first (client-side narrowing of the ranked set), then sort. Commute
+    // sort is meaningless for remote searches; fall back to match.
     const sorter = sort === 'commute' && !criteria.inPerson ? SORTERS.match : SORTERS[sort];
-    return arr.sort(sorter);
-  }, [results, sort, criteria.inPerson]);
+    return results.filter((s) => matchesFilters(s, filters)).sort(sorter);
+  }, [results, sort, criteria.inPerson, filters]);
+
+  // A map pin hover/click highlights and scrolls the matching card into view.
+  const handleMapSelect = (id: string) => {
+    setHoveredId(id);
+    cardRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
 
   if (!hasSearched) {
     return (
@@ -45,7 +72,7 @@ export default function ResultsView() {
     );
   }
 
-  if (sorted.length === 0) {
+  if (results.length === 0) {
     return (
       <EmptyState
         title="No matches found"
@@ -60,7 +87,9 @@ export default function ResultsView() {
       <div className="sticky top-[57px] z-10 -mx-4 mb-3 flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/95 px-4 py-2.5 backdrop-blur">
         <div>
           <h1 className="text-lg font-bold text-slate-900">
-            {sorted.length} matches in {criteria.city}
+            {sorted.length === results.length
+              ? `${results.length} matches in ${criteria.city}`
+              : `${sorted.length} of ${results.length} matches`}
           </h1>
           <p className="text-xs text-slate-500">
             {criteria.inPerson
@@ -69,7 +98,7 @@ export default function ResultsView() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {view === 'list' && (
+          {(isDesktop || view === 'list') && (
             <label>
               <span className="sr-only">Sort by</span>
               <select
@@ -85,36 +114,73 @@ export default function ResultsView() {
               </select>
             </label>
           )}
-          <div className="flex overflow-hidden rounded-lg border border-slate-200">
-            {(['list', 'map'] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                aria-pressed={view === v}
-                className={`px-2.5 py-1.5 text-sm font-medium capitalize transition ${
-                  view === v ? 'bg-brand-600 text-white' : 'bg-ink text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
+          {/* The split view replaces the toggle on desktop. */}
+          {!isDesktop && (
+            <div className="flex overflow-hidden rounded-lg border border-slate-200">
+              {(['list', 'map'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  aria-pressed={view === v}
+                  className={`px-2.5 py-1.5 text-sm font-medium capitalize transition ${
+                    view === v ? 'bg-brand-600 text-white' : 'bg-ink text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {view === 'map' ? (
+      {(isDesktop || view === 'list') && (
+        <ResultsFilters results={results} filters={filters} onChange={setFilters} />
+      )}
+
+      {sorted.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center motion-safe:animate-fadeup">
+          <h2 className="font-serif text-xl font-semibold text-slate-900">No matches with these filters</h2>
+          <p className="mt-1 max-w-xs text-sm text-slate-500">
+            Nothing in {criteria.city} fits every refinement. Loosen one to see more.
+          </p>
+          <button
+            type="button"
+            onClick={() => setFilters(EMPTY_FILTERS)}
+            className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : isDesktop ? (
+        // Split: scrolling list on the left, sticky map on the right. The map is
+        // only mounted here (desktop) or in mobile map view, so leaflet stays lazy.
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,44%)]">
+          <div>{renderList(sorted, criteria.inPerson, cardRefs, setHoveredId, hoveredId)}</div>
+          <div>
+            <div className="sticky top-[105px]">
+              <Suspense
+                fallback={<div className="h-[calc(100vh-130px)] animate-pulse rounded-2xl bg-slate-200" />}
+              >
+                <ResultsMap
+                  scored={sorted}
+                  highlightedId={hoveredId ?? undefined}
+                  onSelect={handleMapSelect}
+                  className="h-[calc(100vh-130px)]"
+                />
+              </Suspense>
+            </div>
+          </div>
+        </div>
+      ) : view === 'map' ? (
         <Suspense
           fallback={<div className="h-[60vh] animate-pulse rounded-2xl bg-slate-200" />}
         >
-          <ResultsMap scored={sorted} />
+          <ResultsMap scored={sorted} highlightedId={hoveredId ?? undefined} onSelect={handleMapSelect} />
         </Suspense>
       ) : (
-        <div className="space-y-3">
-          {sorted.map((scored) => (
-            <ListingCard key={scored.listing.id} scored={scored} inPerson={criteria.inPerson} />
-          ))}
-        </div>
+        renderList(sorted, criteria.inPerson, cardRefs, setHoveredId, hoveredId)
       )}
 
       <div className="mt-6 text-center">
@@ -126,12 +192,47 @@ export default function ResultsView() {
   );
 }
 
+/** The staggered card list, shared by the mobile list view and the desktop split.
+ * Each card registers its element so a map-pin hover can scroll it into view, and
+ * gets a brand ring while its pin is the active one. */
+function renderList(
+  sorted: ScoredListing[],
+  inPerson: boolean,
+  cardRefs: { current: Map<string, HTMLDivElement> },
+  onHover: (id: string | null) => void,
+  hoveredId: string | null
+) {
+  return (
+    <div className="space-y-3">
+      {sorted.map((scored, i) => (
+        <div
+          key={scored.listing.id}
+          ref={(el) => {
+            if (el) cardRefs.current.set(scored.listing.id, el);
+            else cardRefs.current.delete(scored.listing.id);
+          }}
+          className="motion-safe:animate-fadeup"
+          style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
+        >
+          <ListingCard
+            scored={scored}
+            inPerson={inPerson}
+            onHover={onHover}
+            highlighted={hoveredId === scored.listing.id}
+            compareSlot={<CompareToggle entry={scored} />}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function LoadingState() {
   return (
     <div className="space-y-3 pt-2">
-      <div className="h-6 w-48 animate-pulse rounded bg-slate-200" />
+      <div className="h-6 w-48 animate-pulse rounded bg-ink-700" />
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-40 animate-pulse rounded-2xl bg-slate-200" />
+        <ListingSkeleton key={i} />
       ))}
     </div>
   );
@@ -139,8 +240,15 @@ function LoadingState() {
 
 function EmptyState({ title, body, cta }: { title: string; body: ReactNode; cta?: boolean }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
+    <div className="flex flex-col items-center justify-center py-20 text-center motion-safe:animate-fadeup">
+      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sage text-brand-700">
+        <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9.5 12 3l9 6.5" />
+          <path d="M5 9v11h14V9" />
+          <path d="M9 20v-6h6v6" />
+        </svg>
+      </span>
+      <h2 className="mt-4 font-serif text-2xl font-semibold text-slate-900">{title}</h2>
       <p className="mt-1 max-w-xs text-sm text-slate-500">{body}</p>
       {cta && (
         <Link

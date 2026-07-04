@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserData } from '../context/user-data-context';
 import { useAuth } from '../context/auth-context';
+import { useSearch } from '../context/search-context';
+import { toScoredFallback } from '../context/compare-context';
 import Rating from '../components/rating';
 import SaveButton from '../components/save-button';
+import CompareToggle from '../components/compare-toggle';
 import { formatRent, formatBeds, resolveListingUrl, STALE_AFTER_DAYS } from '../lib/format';
 
 /**
@@ -16,6 +19,7 @@ import { formatRent, formatBeds, resolveListingUrl, STALE_AFTER_DAYS } from '../
 export default function SavedView() {
   const { savedListings } = useUserData();
   const { enabled, user } = useAuth();
+  const { criteria } = useSearch();
 
   return (
     <div className="space-y-4">
@@ -90,6 +94,7 @@ export default function SavedView() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <SaveButton listing={l} />
+                    <CompareToggle entry={toScoredFallback(l, criteria)} />
                     <a
                       href={url}
                       target="_blank"

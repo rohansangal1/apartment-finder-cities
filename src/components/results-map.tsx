@@ -23,13 +23,17 @@ function pinColor(score: number): string {
 
 function scoreIcon(score: number, selected: boolean) {
   const bg = pinColor(score);
-  const ring = selected ? 'box-shadow:0 0 0 3px rgba(255,255,255,0.9);' : '';
+  // Selected/highlighted pins grow and gain a white ring so the list↔map
+  // hover-sync reads at a glance.
+  const size = selected ? 38 : 30;
+  const ring = selected ? 'box-shadow:0 0 0 3px rgba(255,255,255,0.95);z-index:1000;' : '';
+  const font = selected ? 14 : 12;
   return divIcon({
     className: '',
-    html: `<div style="background:${bg};${ring}color:#0B0B0C;width:30px;height:30px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;font-family:ui-monospace,monospace;border:2px solid #0B0B0C;">${score}</div>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -16],
+    html: `<div style="background:${bg};${ring}color:#0B0B0C;width:${size}px;height:${size}px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${font}px;font-family:ui-monospace,monospace;border:2px solid #0B0B0C;transition:width .12s,height .12s;">${score}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2 - 1],
   });
 }
 
@@ -54,11 +58,17 @@ function FitBounds({ points }: { points: Array<[number, number]> }) {
 export default function ResultsMap({
   scored,
   selectedId,
+  highlightedId,
   onSelect,
+  className = 'h-[60vh]',
 }: {
   scored: ScoredListing[];
   selectedId?: string;
+  /** Pin to emphasize from an external hover (desktop list↔map sync). */
+  highlightedId?: string;
   onSelect?: (id: string) => void;
+  /** Sizing wrapper; defaults to the mobile map height. */
+  className?: string;
 }) {
   // Guard against listings missing coordinates.
   const withCoords = scored.filter(
@@ -68,14 +78,14 @@ export default function ResultsMap({
 
   if (withCoords.length === 0) {
     return (
-      <div className="flex h-[60vh] items-center justify-center rounded-2xl border border-slate-200 bg-ink text-sm text-slate-500">
+      <div className={`flex items-center justify-center rounded-2xl border border-slate-200 bg-ink text-sm text-slate-500 ${className}`}>
         No mappable locations for these results.
       </div>
     );
   }
 
   return (
-    <div className="h-[60vh] overflow-hidden rounded-2xl border border-slate-200 shadow-sm">
+    <div className={`overflow-hidden rounded-2xl border border-slate-200 shadow-sm ${className}`}>
       <MapContainer
         center={points[0]}
         zoom={12}
@@ -95,8 +105,11 @@ export default function ResultsMap({
             <Marker
               key={l.id}
               position={[l.lat, l.lng]}
-              icon={scoreIcon(s.matchScore, l.id === selectedId)}
-              eventHandlers={{ click: () => onSelect?.(l.id) }}
+              icon={scoreIcon(s.matchScore, l.id === selectedId || l.id === highlightedId)}
+              eventHandlers={{
+                click: () => onSelect?.(l.id),
+                mouseover: () => onSelect?.(l.id),
+              }}
             >
               <Popup>
                 <div className="min-w-[9rem]">

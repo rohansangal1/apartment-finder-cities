@@ -77,16 +77,45 @@ export default function InputView() {
       <section className="animate-fadeup overflow-hidden rounded-3xl bg-paper-cream shadow-soft-lg">
         <div className="grid items-stretch sm:grid-cols-2">
           <div className="order-2 flex flex-col justify-center px-7 py-9 sm:order-1 sm:px-10 sm:py-14">
-            <span className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-700">
+            <span
+              className="animate-fadeup text-xs font-semibold uppercase tracking-[0.22em] text-brand-700"
+              style={{ animationDelay: '60ms' }}
+            >
               Apartment finding, made human
             </span>
-            <h1 className="mt-4 font-serif text-5xl leading-[1.02] tracking-tight text-slate-900 sm:text-6xl">
-              Find a place that fits your life
+            <h1
+              className="mt-4 animate-fadeup font-serif text-5xl leading-[1.02] tracking-tight text-slate-900 sm:text-6xl"
+              style={{ animationDelay: '140ms' }}
+            >
+              Find a place that{' '}
+              <span className="relative inline-block">
+                fits
+                <span className="absolute inset-x-0 -bottom-0.5 h-[3px] rounded-full bg-terracotta-600" />
+              </span>{' '}
+              your life
             </h1>
-            <p className="mt-4 max-w-md text-base leading-relaxed text-slate-600">
+            <p
+              className="mt-4 max-w-md animate-fadeup text-base leading-relaxed text-slate-600"
+              style={{ animationDelay: '220ms' }}
+            >
               Tell us a little about your days — your commute, your budget, the space you need — and
               we'll gently rank homes by how well they fit. No endless scrolling.
             </p>
+            <dl
+              className="mt-6 flex animate-fadeup gap-6 border-t border-ink-600/60 pt-5"
+              style={{ animationDelay: '300ms' }}
+            >
+              {[
+                { v: '4', l: 'priorities weighed' },
+                { v: '7', l: 'cities to start' },
+                { v: '30s', l: 'to your matches' },
+              ].map((s) => (
+                <div key={s.l}>
+                  <dt className="data text-2xl font-semibold text-slate-900">{s.v}</dt>
+                  <dd className="mt-0.5 text-[11px] uppercase tracking-wide text-slate-400">{s.l}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
           <div className="order-1 min-h-[220px] sm:order-2 sm:min-h-[380px]">
             <img

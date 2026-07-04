@@ -89,10 +89,16 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(12px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        // Horizontal fill for score-breakdown bars — grows from the left edge.
+        growbar: {
+          '0%': { transform: 'scaleX(0)' },
+          '100%': { transform: 'scaleX(1)' },
+        },
       },
       animation: {
         fadein: 'fadein 0.7s ease',
         fadeup: 'fadeup 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',
+        growbar: 'growbar 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },

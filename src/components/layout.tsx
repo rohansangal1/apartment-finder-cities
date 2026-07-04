@@ -1,6 +1,7 @@
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { DATA_SOURCE } from '../lib/data-client';
+import CompareTray from './compare-tray';
 
 /**
  * App shell: a top bar (logo + desktop nav) and a mobile bottom tab bar. Most
@@ -8,11 +9,22 @@ import { DATA_SOURCE } from '../lib/data-client';
  * small screens and inline on larger ones.
  */
 export default function Layout({ children }: { children: ReactNode }) {
+  // The Results and Compare views need room for a side-by-side map / comparison
+  // table on desktop, so they widen the shell past the reading-width default.
+  // This couples Layout to two specific routes — accepted as a deliberate, small
+  // exception rather than a w-screen breakout hack. Keep TopBar's width in sync.
+  const { pathname } = useLocation();
+  const wide = pathname.startsWith('/results') || pathname.startsWith('/compare');
+  const maxW = wide ? 'max-w-4xl lg:max-w-[88rem]' : 'max-w-4xl';
+
   return (
     <div className="flex min-h-full flex-col">
-      <TopBar />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 pb-24 pt-4 sm:px-6 sm:pb-14 sm:pt-8">{children}</main>
+      <TopBar maxW={maxW} />
+      <main className={`mx-auto w-full flex-1 px-4 pb-24 pt-4 sm:px-6 sm:pb-14 sm:pt-8 ${maxW}`}>
+        {children}
+      </main>
       <Footer />
+      <CompareTray />
       <MobileTabBar />
     </div>
   );
@@ -32,10 +44,10 @@ const NAV: NavItem[] = [
   { to: '/account', label: 'Account', icon: UserIcon },
 ];
 
-function TopBar() {
+function TopBar({ maxW }: { maxW: string }) {
   return (
     <header className="sticky top-0 z-20 border-b border-ink-600/70 bg-ink-950/80 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-3 sm:px-6">
+      <div className={`mx-auto flex w-full items-center justify-between px-4 py-3 sm:px-6 ${maxW}`}>
         <Link to="/" className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-white shadow-soft">
             <HomeGlyph />

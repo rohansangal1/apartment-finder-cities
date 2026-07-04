@@ -11,6 +11,7 @@ import Rating from '../components/rating';
 import Tag from '../components/tag';
 import SaveButton from '../components/save-button';
 import ReviewForm from '../components/review-form';
+import TrueCostCalculator from '../components/true-cost-calculator';
 import { formatRent, formatBeds, resolveListingUrl, sourceLabel, isListingStale } from '../lib/format';
 
 const ALL_MODES: CommuteMode[] = ['walk', 'transit', 'bike', 'drive'];
@@ -186,6 +187,14 @@ export default function DetailView() {
           </p>
         </section>
       )}
+
+      {/* True cost of living here */}
+      <TrueCostCalculator
+        rent={listing.rentMonthly}
+        bedrooms={listing.bedrooms}
+        commuteMode={criteria.commuteMode}
+        oneWayMinutes={criteria.inPerson ? commuteMinutes : 0}
+      />
 
       {/* Commute breakdown */}
       <section className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">

@@ -5,6 +5,7 @@ import ResultsView from './views/results-view';
 import DetailView from './views/detail-view';
 import SavedView from './views/saved-view';
 import AccountView from './views/account-view';
+import CompareView from './views/compare-view';
 
 /** Route table. Each view is its own screen — never everything on one page. */
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/results" element={<ResultsView />} />
         <Route path="/listing/:id" element={<DetailView />} />
         <Route path="/saved" element={<SavedView />} />
+        <Route path="/compare" element={<CompareView />} />
         <Route path="/account" element={<AccountView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

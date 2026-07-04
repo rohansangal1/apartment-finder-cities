@@ -25,6 +25,12 @@ export interface Listing {
    * provider supplies it, and older saved snapshots predate the field.
    */
   lastSeenAt?: string;
+  /**
+   * Optional listing photos (first is the hero). Real providers (RentCast) often
+   * lack photos, so ListingVisual falls back to a deterministic generated SVG
+   * when this is absent — every card still gets distinctive imagery.
+   */
+  photos?: string[];
 }
 
 export type CommuteMode = 'walk' | 'transit' | 'bike' | 'drive';
@@ -89,6 +95,12 @@ export interface ScoredListing {
   commuteMode: CommuteMode;
   whyItMatched: string;
   subScores: SubScores;
+  /**
+   * Whether the commute sub-score is meaningful for this entry. False for remote
+   * searches and for entries synthesized from saved snapshots (no commute known).
+   * The Compare view uses it to render commute as N/A instead of a misleading bar.
+   */
+  commuteApplies?: boolean;
 }
 
 /**

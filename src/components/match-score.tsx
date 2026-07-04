@@ -1,4 +1,17 @@
-/** Circular 0–100 match-score badge, color-graded by strength. */
+import { useEffect, useState } from 'react';
+
+/** Circular 0–100 match-score badge as an animated SVG progress ring, color-graded
+ * by strength. Same API/thresholds as before; the ring fills on mount (and resets
+ * to its final value instantly under prefers-reduced-motion via the global CSS
+ * kill switch, which zeroes the transition duration). */
+
+function band(score: number) {
+  if (score >= 80) return { stroke: '#34d399', text: 'text-emerald-300' };
+  if (score >= 60) return { stroke: '#6FB78C', text: 'text-brand-700' };
+  if (score >= 40) return { stroke: '#fbbf24', text: 'text-amber-300' };
+  return { stroke: '#8B857D', text: 'text-slate-400' };
+}
+
 export default function MatchScore({
   score,
   size = 'md',
@@ -6,29 +19,49 @@ export default function MatchScore({
   score: number;
   size?: 'sm' | 'md' | 'lg';
 }) {
-  const color =
-    score >= 80
-      ? 'bg-emerald-100 text-emerald-700 ring-emerald-200'
-      : score >= 60
-      ? 'bg-brand-50 text-brand-700 ring-brand-100'
-      : score >= 40
-      ? 'bg-amber-100 text-amber-700 ring-amber-200'
-      : 'bg-slate-100 text-slate-500 ring-slate-200';
+  const { stroke, text } = band(score);
+  // Animate the ring from empty to `score` after mount.
+  const [offset, setOffset] = useState(100);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setOffset(100 - Math.max(0, Math.min(100, score))));
+    return () => cancelAnimationFrame(raf);
+  }, [score]);
 
-  const sizing =
-    size === 'lg'
-      ? 'h-16 w-16 text-2xl'
-      : size === 'sm'
-      ? 'h-10 w-10 text-sm'
-      : 'h-12 w-12 text-base';
+  const dims =
+    size === 'lg' ? 'h-16 w-16 text-2xl' : size === 'sm' ? 'h-10 w-10 text-xs' : 'h-12 w-12 text-base';
+  const strokeW = size === 'lg' ? 3 : 4;
 
   return (
     <div
-      className={`flex flex-col items-center justify-center rounded-full font-bold ring-2 ${color} ${sizing}`}
+      className={`relative flex shrink-0 items-center justify-center rounded-full bg-ink-900/80 ${dims}`}
       title={`Match score: ${score} out of 100`}
       aria-label={`Match score ${score} out of 100`}
     >
-      <span className="font-mono leading-none tabular-nums">{score}</span>
+      <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
+        <circle
+          cx="18"
+          cy="18"
+          r="16"
+          fill="none"
+          stroke="#2C2C31"
+          strokeWidth={strokeW}
+          pathLength={100}
+        />
+        <circle
+          cx="18"
+          cy="18"
+          r="16"
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeW}
+          strokeLinecap="round"
+          pathLength={100}
+          strokeDasharray={100}
+          strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1)' }}
+        />
+      </svg>
+      <span className={`relative font-mono font-bold leading-none tabular-nums ${text}`}>{score}</span>
     </div>
   );
 }

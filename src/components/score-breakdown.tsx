@@ -37,7 +37,7 @@ export default function ScoreBreakdown({
 
   return (
     <div className={compact ? 'space-y-1.5' : 'space-y-2.5'}>
-      {DIMENSIONS.map(({ key, label }) => {
+      {DIMENSIONS.map(({ key, label }, i) => {
         const score = Math.round(subScores[key]);
         const isNA = key === 'commute' && commuteNA;
         return (
@@ -52,8 +52,8 @@ export default function ScoreBreakdown({
             >
               {!isNA && (
                 <div
-                  className={`h-full rounded-full ${barColor(score)}`}
-                  style={{ width: `${score}%` }}
+                  className={`h-full origin-left rounded-full motion-safe:animate-growbar ${barColor(score)}`}
+                  style={{ width: `${score}%`, animationDelay: `${i * 90}ms` }}
                 />
               )}
             </div>

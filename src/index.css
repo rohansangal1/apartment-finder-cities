@@ -36,6 +36,19 @@ h3 {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Global reduced-motion kill switch: collapse every animation/transition so the
+   fadeups, score rings, and bar fills resolve to their final state instantly. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @layer components {
   /* Rounded, warm input. Soft shadow instead of hard borders. */
   .input {

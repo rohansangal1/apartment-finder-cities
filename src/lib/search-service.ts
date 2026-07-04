@@ -59,6 +59,7 @@ export async function runSearch(criteria: SearchCriteria): Promise<ScoredListing
         commuteMode: criteria.commuteMode,
         whyItMatched,
         subScores,
+        commuteApplies: criteria.inPerson,
       };
     })
   );

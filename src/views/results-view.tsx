@@ -5,6 +5,7 @@ import { useUserData } from '../context/user-data-context';
 import { useMediaQuery } from '../lib/use-media-query';
 import type { ScoredListing, SearchCriteria } from '../lib/types';
 import { SORTERS } from '../lib/search-service';
+import { fetchDealScores, type DealScore } from '../lib/deal-score';
 import ListingCard from '../components/listing-card';
 import ListingSkeleton from '../components/listing-skeleton';
 import CompareToggle from '../components/compare-toggle';
@@ -33,6 +34,10 @@ export default function ResultsView() {
   const [view, setView] = useState<'list' | 'map'>('list');
   const [filters, setFilters] = useState<ResultFilters>(EMPTY_FILTERS);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Deal scores are a progressive enhancement: fetched after results land, keyed
+  // by listing id. null until (and unless) the Python endpoint answers — on plain
+  // vite dev it never runs, so this stays null and no badges render. No errors.
+  const [dealScores, setDealScores] = useState<Record<string, DealScore> | null>(null);
 
   // ≥1024px gets a permanent split list+map instead of the mobile list/map toggle.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -42,6 +47,22 @@ export default function ResultsView() {
   // A fresh search invalidates the old refinements — start clean each result set.
   useEffect(() => {
     setFilters(EMPTY_FILTERS);
+  }, [results]);
+
+  // Fire-and-forget deal-score fetch whenever a new result set arrives. We reset
+  // to null first so stale badges don't linger across searches, then layer scores
+  // on when/if they come back. `cancelled` guards against an out-of-order response
+  // from a superseded search overwriting a newer one.
+  useEffect(() => {
+    setDealScores(null);
+    if (results.length === 0) return;
+    let cancelled = false;
+    fetchDealScores(results.map((r) => r.listing)).then((scores) => {
+      if (!cancelled) setDealScores(scores);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [results]);
 
   const sorted = useMemo(() => {
@@ -163,7 +184,7 @@ export default function ResultsView() {
         // Split: scrolling list on the left, sticky map on the right. The map is
         // only mounted here (desktop) or in mobile map view, so leaflet stays lazy.
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,44%)]">
-          <div>{renderList(sorted, criteria, cardRefs, setHoveredId, hoveredId)}</div>
+          <div>{renderList(sorted, criteria, cardRefs, setHoveredId, hoveredId, dealScores)}</div>
           <div>
             <div className="sticky top-[105px]">
               <Suspense
@@ -186,7 +207,7 @@ export default function ResultsView() {
           <ResultsMap scored={sorted} highlightedId={hoveredId ?? undefined} onSelect={handleMapSelect} />
         </Suspense>
       ) : (
-        renderList(sorted, criteria, cardRefs, setHoveredId, hoveredId)
+        renderList(sorted, criteria, cardRefs, setHoveredId, hoveredId, dealScores)
       )}
 
       <div className="mt-6 text-center">
@@ -206,7 +227,8 @@ function renderList(
   criteria: SearchCriteria,
   cardRefs: { current: Map<string, HTMLDivElement> },
   onHover: (id: string | null) => void,
-  hoveredId: string | null
+  hoveredId: string | null,
+  dealScores: Record<string, DealScore> | null
 ) {
   return (
     <div className="space-y-3">
@@ -224,6 +246,7 @@ function renderList(
             scored={scored}
             inPerson={criteria.inPerson}
             monthlyIncome={criteria.monthlyIncome}
+            dealScore={dealScores?.[scored.listing.id]}
             onHover={onHover}
             highlighted={hoveredId === scored.listing.id}
             compareSlot={<CompareToggle entry={scored} />}

@@ -5,6 +5,7 @@ import { useUserData } from '../context/user-data-context';
 import AddressAutocomplete from '../components/address-autocomplete';
 import ApartmentCarousel from '../components/apartment-carousel';
 import type { SearchCriteria, CommuteMode, Weights } from '../lib/types';
+import type { SavedSearch } from '../lib/user-data/types';
 
 /** Hero backdrop. A warm, sunlit interior — swap by pointing this at another asset. */
 const HERO_IMAGE = '/images/apt-loft.jpg';
@@ -33,8 +34,13 @@ const PRIORITIES: Array<{ key: keyof Weights; label: string; hint: string }> = [
 export default function InputView() {
   const navigate = useNavigate();
   const { criteria, search } = useSearch();
-  const { getPreferences } = useUserData();
+  const { getPreferences, savedAddresses, saveAddress, savedSearches, deleteSearch } =
+    useUserData();
   const [form, setForm] = useState<SearchCriteria>(criteria || DEFAULT_CRITERIA);
+  // Brief inline feedback after saving the typed work address for reuse.
+  const [addrSaved, setAddrSaved] = useState(false);
+  // Which saved search was just applied, for a brief "Applied ✓" confirmation.
+  const [appliedId, setAppliedId] = useState<string | null>(null);
 
   // Pre-fill from saved defaults (signed-in users skip re-entering their situation).
   // Only applies when the form is still at the untouched default, so it never
@@ -66,10 +72,35 @@ export default function InputView() {
   const setWeight = (key: keyof Weights, value: number) =>
     setForm((f) => ({ ...f, weights: { ...f.weights, [key]: value } }));
 
+  // Persist the typed work address for reuse. Default its label to the text
+  // before the first comma ("Salesforce Tower"); users can manage these on the
+  // Searches page.
+  const saveTypedAddress = async () => {
+    const address = (form.workAddress ?? '').trim();
+    if (!address) return;
+    const label = (address.split(',')[0] || address).slice(0, 120);
+    try {
+      await saveAddress(label, address);
+      setAddrSaved(true);
+      setTimeout(() => setAddrSaved(false), 2000);
+    } catch (e) {
+      console.error('Failed to save address', e);
+    }
+  };
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     search(form);
     navigate('/results');
+  };
+
+  // Apply a saved search's parameters into the form (does NOT run it) so the user
+  // can review/tweak and then hit "Show me matches" themselves.
+  const applySaved = (id: string, c: SearchCriteria) => {
+    setForm(c);
+    setAppliedId(id);
+    setTimeout(() => setAppliedId((cur) => (cur === id ? null : cur)), 2000);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -128,6 +159,33 @@ export default function InputView() {
         </div>
       </section>
 
+      {/* ---- Saved searches: tap a card to scaffold its parameters into the
+              form below (it doesn't run the search — the user reviews, then
+              submits). ---- */}
+      {savedSearches.length > 0 && (
+        <section className="animate-fadeup" style={{ animationDelay: '40ms' }}>
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="font-serif text-2xl font-semibold tracking-tight text-slate-900">
+              Your saved searches
+            </h2>
+            <span className="hidden text-xs text-slate-400 sm:block">
+              Tap one to fill the form below
+            </span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {savedSearches.map((s) => (
+              <SavedSearchCard
+                key={s.id}
+                saved={s}
+                applied={appliedId === s.id}
+                onApply={() => applySaved(s.id, s.criteria)}
+                onDelete={() => void deleteSearch(s.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       <form onSubmit={onSubmit} className="space-y-6 sm:space-y-8">
         {/* ---- 1 · Where ---- */}
         <GroupCard step={1} title="Where are you looking?" delay={60}>
@@ -157,12 +215,52 @@ export default function InputView() {
 
           {form.inPerson && (
             <Field label="Work address" hint="We estimate your commute from here.">
+              {/* Quick-pick from saved addresses so users don't retype. */}
+              {savedAddresses.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {savedAddresses.map((a) => {
+                    const active = (form.workAddress ?? '').trim() === a.address;
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => set({ workAddress: a.address })}
+                        aria-pressed={active}
+                        title={a.address}
+                        className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                          active
+                            ? 'bg-sage text-brand-700 shadow-[inset_0_0_0_1.5px_rgba(63,107,84,0.35)]'
+                            : 'bg-ink-700 text-slate-600 hover:text-slate-800'
+                        }`}
+                      >
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <AddressAutocomplete
                 value={form.workAddress ?? ''}
                 onChange={(workAddress) => set({ workAddress })}
                 placeholder="e.g. Salesforce Tower, San Francisco"
                 className="input"
               />
+              {/* Offer to save a freshly typed address for reuse next time. */}
+              {(() => {
+                const address = (form.workAddress ?? '').trim();
+                if (!address) return null;
+                const alreadySaved = savedAddresses.some((a) => a.address === address);
+                if (alreadySaved) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={saveTypedAddress}
+                    className="mt-2 text-xs font-medium text-brand-600 hover:text-brand-700"
+                  >
+                    {addrSaved ? '✓ Saved for next time' : '+ Save this address for next time'}
+                  </button>
+                );
+              })()}
             </Field>
           )}
         </GroupCard>
@@ -280,6 +378,83 @@ export default function InputView() {
         </div>
         <ApartmentCarousel />
       </section>
+    </div>
+  );
+}
+
+/** Short chip summary of a saved search's parameters, for recognition at a glance. */
+function summarize(c: SearchCriteria): string[] {
+  const chips = [
+    c.city,
+    c.bedrooms === 0 ? 'Studio' : `${c.bedrooms} bd`,
+    `≤ $${c.maxRent.toLocaleString()}/mo`,
+    c.inPerson ? `${c.commuteMode} commute` : 'Remote',
+  ];
+  if (c.inPerson && c.workAddress) chips.push(`from ${c.workAddress}`);
+  if (c.monthlyIncome) chips.push(`$${c.monthlyIncome.toLocaleString()}/mo income`);
+  return chips;
+}
+
+/**
+ * A clickable saved-search card. The whole card applies its parameters to the
+ * form (onApply); a small ✕ deletes it (stopPropagation so it doesn't also
+ * apply). Shows a brief "Applied ✓" state after a tap.
+ */
+function SavedSearchCard({
+  saved,
+  applied,
+  onApply,
+  onDelete,
+}: {
+  saved: SavedSearch;
+  applied: boolean;
+  onApply: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onApply}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onApply();
+        }
+      }}
+      className={`group relative cursor-pointer rounded-2xl border bg-ink p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft-lg ${
+        applied ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-200'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="min-w-0 truncate pr-6 font-semibold text-slate-900">{saved.name}</p>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          aria-label={`Delete saved search ${saved.name}`}
+          className="absolute right-3 top-3 rounded-lg p-1 text-slate-300 transition hover:bg-slate-100 hover:text-rose-500"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6h18M8 6V4h8v2m-9 0v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6" />
+          </svg>
+        </button>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {summarize(saved.criteria).map((chip) => (
+          <span
+            key={chip}
+            className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600"
+          >
+            {chip}
+          </span>
+        ))}
+      </div>
+      <p className="mt-2.5 text-xs font-medium text-brand-600">
+        {applied ? '✓ Applied — review below and search' : 'Tap to fill the form →'}
+      </p>
     </div>
   );
 }

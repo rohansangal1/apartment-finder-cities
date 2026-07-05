@@ -8,7 +8,7 @@
  */
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../types';
-import type { UserStore, SavedListing, SavedSearch } from './types';
+import type { UserStore, SavedListing, SavedSearch, SavedAddress } from './types';
 
 interface ReviewRow {
   id: string;
@@ -180,6 +180,47 @@ export function createSupabaseStore(supabase: SupabaseClient, user: User): UserS
     async deleteSearch(id: string) {
       const { error } = await supabase
         .from('saved_searches')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('id', id);
+      if (error) throw error;
+    },
+
+    async listAddresses() {
+      const { data, error } = await supabase
+        .from('saved_addresses')
+        .select('id, label, address, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map(
+        (r): SavedAddress => ({
+          id: r.id as string,
+          label: r.label as string,
+          address: r.address as string,
+          createdAt: r.created_at as string,
+        })
+      );
+    },
+
+    async saveAddress(label: string, address: string) {
+      const { data, error } = await supabase
+        .from('saved_addresses')
+        .insert({ user_id: user.id, label, address })
+        .select('id, label, address, created_at')
+        .single();
+      if (error) throw error;
+      return {
+        id: data.id as string,
+        label: data.label as string,
+        address: data.address as string,
+        createdAt: data.created_at as string,
+      };
+    },
+
+    async deleteAddress(id: string) {
+      const { error } = await supabase
+        .from('saved_addresses')
         .delete()
         .eq('user_id', user.id)
         .eq('id', id);

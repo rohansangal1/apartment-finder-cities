@@ -5,7 +5,7 @@
  * identity, gated behind sign-in).
  */
 import type { Review, NewReview, UserPreferences, SearchCriteria } from '../types';
-import type { UserStore, SavedListing, SavedSearch } from './types';
+import type { UserStore, SavedListing, SavedSearch, SavedAddress } from './types';
 import { getReviews as getMockReviews } from '../data-client';
 
 // v2: entries are full SavedListing snapshots, not bare ids. The old v1 key
@@ -13,6 +13,7 @@ import { getReviews as getMockReviews } from '../data-client';
 const SAVED_KEY = 'nestle.saved.v2';
 const PREFS_KEY = 'nestle.prefs.v1';
 const SEARCHES_KEY = 'nestle.searches.v1';
+const ADDRESSES_KEY = 'nestle.addresses.v1';
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -91,6 +92,28 @@ export const localStore: UserStore = {
     writeJson(
       SEARCHES_KEY,
       readJson<SavedSearch[]>(SEARCHES_KEY, []).filter((s) => s.id !== id)
+    );
+  },
+
+  async listAddresses() {
+    return readJson<SavedAddress[]>(ADDRESSES_KEY, []);
+  },
+
+  async saveAddress(label: string, address: string) {
+    const entry: SavedAddress = {
+      id: crypto.randomUUID(),
+      label,
+      address,
+      createdAt: new Date().toISOString(),
+    };
+    writeJson(ADDRESSES_KEY, [entry, ...readJson<SavedAddress[]>(ADDRESSES_KEY, [])]);
+    return entry;
+  },
+
+  async deleteAddress(id: string) {
+    writeJson(
+      ADDRESSES_KEY,
+      readJson<SavedAddress[]>(ADDRESSES_KEY, []).filter((a) => a.id !== id)
     );
   },
 };

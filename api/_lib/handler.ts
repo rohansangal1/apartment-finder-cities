@@ -18,9 +18,43 @@ function clientIp(req: VercelRequest): string {
   return req.socket?.remoteAddress || 'unknown';
 }
 
+/**
+ * Decide which value to send in `Access-Control-Allow-Origin`.
+ *
+ * CORS is a *browser* guardrail: it tells a page whether JS on origin A is
+ * allowed to read responses from our API on origin B. `*` says "any website may
+ * call me" — fine for a fully public, unauthenticated API, but a blunt default.
+ *
+ * We prefer an *allowlist*: set ALLOWED_ORIGINS in the Vercel dashboard to a
+ * comma-separated list (e.g. "https://apt.example.com,https://www.apt.example.com").
+ * We then echo the request's Origin back *only if* it's on the list. Echoing the
+ * specific origin (rather than "*") is also required if we ever send credentials.
+ *
+ * When ALLOWED_ORIGINS is unset we fall back to "*" so local dev and previews
+ * keep working with zero config — you opt into the stricter behavior per
+ * environment by setting the var only where you want it enforced.
+ */
+function resolveAllowedOrigin(req: VercelRequest): string | null {
+  const raw = process.env.ALLOWED_ORIGINS?.trim();
+  if (!raw) return '*'; // Unset → permissive default (dev/preview convenience).
+
+  const allowlist = raw.split(',').map((o) => o.trim()).filter(Boolean);
+  const origin = req.headers.origin;
+  if (typeof origin === 'string' && allowlist.includes(origin)) return origin;
+
+  // Origin missing or not allowlisted → send no ACAO header. The browser then
+  // blocks the cross-origin read. (null means "don't set the header".)
+  return null;
+}
+
 export function withHandler(method: 'GET' | 'POST', fn: Handler) {
   return async (req: VercelRequest, res: VercelResponse) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const allowOrigin = resolveAllowedOrigin(req);
+    if (allowOrigin) res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+    // Because the ACAO value now depends on the incoming Origin, caches (CDN,
+    // browser) must key on it too — otherwise one origin's cached response could
+    // be replayed for another. `Vary: Origin` tells them exactly that.
+    res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 

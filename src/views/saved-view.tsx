@@ -1,13 +1,21 @@
-import { useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserData } from '../context/user-data-context';
 import { useAuth } from '../context/auth-context';
 import { useSearch } from '../context/search-context';
 import { toScoredFallback } from '../context/compare-context';
+
+// Same lazy-loaded map the Results page uses — leaflet is ~150 kB, so it only
+// loads when the user actually switches to the map tab.
+const ResultsMap = lazy(() => import('../components/results-map'));
 import Rating from '../components/rating';
 import SaveButton from '../components/save-button';
 import CompareToggle from '../components/compare-toggle';
-import { formatRent, formatBeds, resolveListingUrl, STALE_AFTER_DAYS } from '../lib/format';
+import { formatRent, formatBeds } from '../lib/format';
+import { resolveListingUrl, STALE_AFTER_DAYS } from '../lib/listing-links';
+import ListingLinks from '../components/listing-links';
+import AiNotesButton from '../components/ai-notes-button';
+import DocumentSection from '../components/document-section';
 
 /**
  * Saved apartments. Renders directly from the snapshots stored at save time
@@ -20,27 +28,62 @@ export default function SavedView() {
   const { savedListings } = useUserData();
   const { enabled, user } = useAuth();
   const { criteria } = useSearch();
+  const [view, setView] = useState<'list' | 'map'>('list');
+
+  // Reuse the results scoring engine so saved snapshots can feed both the map and
+  // the compare table. Saved items have no live commute, so toScoredFallback
+  // marks commuteApplies=false (map/compare show N/A rather than a fake number).
+  const scored = useMemo(
+    () => savedListings.map((s) => toScoredFallback(s.listing, criteria)),
+    [savedListings, criteria]
+  );
 
   return (
     <div className="space-y-4">
-      <header className="pt-2">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Saved apartments</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {enabled && user ? (
-            'Your shortlist, synced to your account across all your devices.'
-          ) : (
-            <>
-              Your shortlist, saved on this device.{' '}
-              <Link to="/account" className="font-medium text-brand-600 hover:underline">
-                Sign in
-              </Link>{' '}
-              to sync it across devices.
-            </>
-          )}
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-3 pt-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Saved apartments</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {enabled && user ? (
+              'Your shortlist, synced to your account across all your devices.'
+            ) : (
+              <>
+                Your shortlist, saved on this device.{' '}
+                <Link to="/account" className="font-medium text-brand-600 hover:underline">
+                  Sign in
+                </Link>{' '}
+                to sync it across devices.
+              </>
+            )}
+          </p>
+        </div>
+        {/* List/map toggle — mirrors the Results view. Only useful with places to show. */}
+        {savedListings.length > 0 && (
+          <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200">
+            {(['list', 'map'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                aria-pressed={view === v}
+                className={`px-3 py-1.5 text-sm font-medium capitalize transition ${
+                  view === v ? 'bg-brand-600 text-white' : 'bg-ink text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
-      {savedListings.length === 0 ? (
+      {savedListings.length > 0 && view === 'map' ? (
+        <Suspense
+          fallback={<div className="h-[60vh] animate-pulse rounded-2xl bg-slate-200" />}
+        >
+          <ResultsMap scored={scored} />
+        </Suspense>
+      ) : savedListings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <span className="text-4xl">🤍</span>
           <h2 className="mt-3 text-lg font-semibold text-slate-800">Nothing saved yet</h2>
@@ -105,7 +148,12 @@ export default function SavedView() {
                     </a>
                   </div>
                 </div>
+                {/* Cross-check this saved place on other portals (StreetEasy /
+                    Leasebreak appear only for NYC listings). */}
+                <ListingLinks listing={l} isStale={stale} className="mt-2" />
                 <NoteEditor listingId={l.id} note={s.note} />
+                <AiNotesButton />
+                <DocumentSection listingId={l.id} />
               </li>
             );
           })}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { useSearch } from '../context/search-context';
 import { useUserData } from '../context/user-data-context';
 import { getListings, getCommute, getRating, geocode } from '../lib/data-client';
@@ -13,7 +13,9 @@ import SaveButton from '../components/save-button';
 import ReviewForm from '../components/review-form';
 import TrueCostCalculator from '../components/true-cost-calculator';
 import { affordability } from '../lib/affordability';
-import { formatRent, formatBeds, resolveListingUrl, sourceLabel, isListingStale } from '../lib/format';
+import { formatRent, formatBeds, sourceLabel } from '../lib/format';
+import { resolveListingUrl, isListingStale } from '../lib/listing-links';
+import ListingLinks from '../components/listing-links';
 
 const ALL_MODES: CommuteMode[] = ['walk', 'transit', 'bike', 'drive'];
 
@@ -25,6 +27,10 @@ const ALL_MODES: CommuteMode[] = ['walk', 'transit', 'bike', 'drive'];
  */
 export default function DetailView() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  // Deal-score label passed through router state from the results card. Absent on
+  // a deep link / refresh (no navigation state) — we just don't show the badge.
+  const dealScoreLabel = (location.state as { dealScoreLabel?: string } | null)?.dealScoreLabel;
   const { results, criteria } = useSearch();
   const { getReviews, addReview, canWriteReviews } = useUserData();
 
@@ -148,6 +154,14 @@ export default function DetailView() {
           );
         })()}
 
+        {dealScoreLabel && (
+          <p className="mt-3 flex items-center gap-1.5 text-sm text-slate-600">
+            <span className="inline-flex rounded-lg bg-emerald-50 px-3 py-1.5 font-medium text-emerald-700">
+              Deal Score: {dealScoreLabel}
+            </span>
+          </p>
+        )}
+
         <div className="mt-4">
           <Rating
             value={rating?.value ?? listing.ratingValue}
@@ -183,6 +197,8 @@ export default function DetailView() {
               : "Our data source doesn't provide a direct link — this opens a rental search for the address so you never hit a dead end."}
           </p>
         )}
+        {/* Other rental portals to cross-check (all sites where applicable). */}
+        <ListingLinks listing={listing} isStale={stale} className="mt-3 justify-center" />
       </div>
 
       {/* Match-score breakdown */}

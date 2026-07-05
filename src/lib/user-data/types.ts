@@ -26,6 +26,16 @@ export interface SavedSearch {
   createdAt: string;
 }
 
+/** A reusable work address the user can pick instead of retyping it each search.
+ * `label` is a friendly name ("Office", "Downtown campus"); `address` is the
+ * full string fed to the commute geocoder. */
+export interface SavedAddress {
+  id: string;
+  label: string;
+  address: string;
+  createdAt: string;
+}
+
 export interface UserStore {
   /** Full snapshots, most-recently-saved first. */
   listSaved(): Promise<SavedListing[]>;
@@ -44,4 +54,9 @@ export interface UserStore {
   listSearches(): Promise<SavedSearch[]>;
   saveSearch(name: string, criteria: SearchCriteria): Promise<SavedSearch>;
   deleteSearch(id: string): Promise<void>;
+
+  /** Reusable work addresses (most-recently-saved first). */
+  listAddresses(): Promise<SavedAddress[]>;
+  saveAddress(label: string, address: string): Promise<SavedAddress>;
+  deleteAddress(id: string): Promise<void>;
 }

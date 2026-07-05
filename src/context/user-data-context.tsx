@@ -18,9 +18,10 @@ import {
   type ReactNode,
 } from 'react';
 import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../lib/types';
-import type { UserStore, SavedListing, SavedSearch } from '../lib/user-data/types';
+import type { UserStore, SavedListing, SavedSearch, SavedAddress } from '../lib/user-data/types';
 import { localStore, clearLocalSaved } from '../lib/user-data/local-store';
 import { createSupabaseStore } from '../lib/user-data/supabase-store';
+import { createDocumentsClient, type DocumentsClient } from '../lib/user-data/documents';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './auth-context';
 
@@ -38,6 +39,13 @@ interface UserDataContextValue {
   savedSearches: SavedSearch[];
   saveSearch: (name: string, criteria: SearchCriteria) => Promise<SavedSearch>;
   deleteSearch: (id: string) => Promise<void>;
+  savedAddresses: SavedAddress[];
+  saveAddress: (label: string, address: string) => Promise<SavedAddress>;
+  deleteAddress: (id: string) => Promise<void>;
+  /** File storage for saved listings — non-null only for signed-in Supabase
+   * users (files can't live in localStorage). Guests get null; the UI shows a
+   * sign-in prompt rather than branching on a throwing store. */
+  documents: DocumentsClient | null;
 }
 
 const UserDataContext = createContext<UserDataContextValue | null>(null);
@@ -51,8 +59,18 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     return localStore;
   }, [enabled, user]);
 
+  // Documents are Supabase-only (private bucket + signed URLs). Null for guests
+  // and when Supabase isn't configured — the same condition that picks the
+  // Supabase store above, so `documents` is non-null exactly when the account
+  // store is active.
+  const documents: DocumentsClient | null = useMemo(() => {
+    if (enabled && supabase && user) return createDocumentsClient(supabase, user.id);
+    return null;
+  }, [enabled, user]);
+
   const [savedListings, setSavedListings] = useState<SavedListing[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const savedIds = useMemo(
     () => new Set(savedListings.map((s) => s.listing.id)),
     [savedListings]
@@ -101,6 +119,20 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setSavedSearches(s);
       })
       .catch((e) => console.error('Failed to load saved searches', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [store]);
+
+  // Load saved work addresses (same fail-soft pattern as saved searches).
+  useEffect(() => {
+    let cancelled = false;
+    store
+      .listAddresses()
+      .then((a) => {
+        if (!cancelled) setSavedAddresses(a);
+      })
+      .catch((e) => console.error('Failed to load saved addresses', e));
     return () => {
       cancelled = true;
     };
@@ -169,6 +201,29 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     [store, savedSearches]
   );
 
+  const saveAddress = useCallback(
+    async (label: string, address: string) => {
+      const created = await store.saveAddress(label, address);
+      setSavedAddresses((cur) => [created, ...cur]);
+      return created;
+    },
+    [store]
+  );
+
+  const deleteAddress = useCallback(
+    async (id: string) => {
+      const prev = savedAddresses;
+      setSavedAddresses((cur) => cur.filter((a) => a.id !== id)); // optimistic
+      try {
+        await store.deleteAddress(id);
+      } catch (e) {
+        console.error('Failed to delete saved address', e);
+        setSavedAddresses(prev); // roll back
+      }
+    },
+    [store, savedAddresses]
+  );
+
   const getReviews = useCallback((listingId: string) => store.getReviews(listingId), [store]);
   const addReview = useCallback((review: NewReview) => store.addReview(review), [store]);
   const getPreferences = useCallback(() => store.getPreferences(), [store]);
@@ -191,6 +246,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     savedSearches,
     saveSearch,
     deleteSearch,
+    savedAddresses,
+    saveAddress,
+    deleteAddress,
+    documents,
   };
 
   return <UserDataContext.Provider value={value}>{children}</UserDataContext.Provider>;

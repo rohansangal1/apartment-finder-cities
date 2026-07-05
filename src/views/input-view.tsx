@@ -169,7 +169,7 @@ export default function InputView() {
               Your saved searches
             </h2>
             <span className="hidden text-xs text-slate-400 sm:block">
-              Tap one to fill the form below
+              Apply one to fill the form below
             </span>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -396,9 +396,10 @@ function summarize(c: SearchCriteria): string[] {
 }
 
 /**
- * A clickable saved-search card. The whole card applies its parameters to the
- * form (onApply); a small ✕ deletes it (stopPropagation so it doesn't also
- * apply). Shows a brief "Applied ✓" state after a tap.
+ * A saved-search card. Applying is an explicit two-step action: an "Apply to
+ * search" button reveals a confirm/cancel prompt (so a stray click never wipes
+ * what's already in the form), and only "Apply" actually scaffolds the criteria
+ * in. A small ✕ deletes the saved search.
  */
 function SavedSearchCard({
   saved,
@@ -411,18 +412,11 @@ function SavedSearchCard({
   onApply: () => void;
   onDelete: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
+
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onApply}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onApply();
-        }
-      }}
-      className={`group relative cursor-pointer rounded-2xl border bg-ink p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft-lg ${
+      className={`relative rounded-2xl border bg-ink p-4 shadow-sm transition ${
         applied ? 'border-brand-400 ring-2 ring-brand-200' : 'border-slate-200'
       }`}
     >
@@ -430,10 +424,7 @@ function SavedSearchCard({
         <p className="min-w-0 truncate pr-6 font-semibold text-slate-900">{saved.name}</p>
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
+          onClick={onDelete}
           aria-label={`Delete saved search ${saved.name}`}
           className="absolute right-3 top-3 rounded-lg p-1 text-slate-300 transition hover:bg-slate-100 hover:text-rose-500"
         >
@@ -442,6 +433,7 @@ function SavedSearchCard({
           </svg>
         </button>
       </div>
+
       <div className="mt-2 flex flex-wrap gap-1.5">
         {summarize(saved.criteria).map((chip) => (
           <span
@@ -452,9 +444,45 @@ function SavedSearchCard({
           </span>
         ))}
       </div>
-      <p className="mt-2.5 text-xs font-medium text-brand-600">
-        {applied ? '✓ Applied — review below and search' : 'Tap to fill the form →'}
-      </p>
+
+      {applied ? (
+        <p className="mt-3 text-xs font-medium text-brand-600">
+          ✓ Applied — review the form below and search
+        </p>
+      ) : confirming ? (
+        <div className="mt-3">
+          <p className="text-xs text-slate-500">
+            Apply this search? It will replace what's currently in the form below.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onApply();
+                setConfirming(false);
+              }}
+              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="mt-3 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100"
+        >
+          Apply to search
+        </button>
+      )}
     </div>
   );
 }

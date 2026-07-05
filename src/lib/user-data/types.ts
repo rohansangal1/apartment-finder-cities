@@ -8,7 +8,7 @@
  * UserDataContext picks the implementation based on auth state, so components
  * never branch on "are we signed in" for storage — they just call the store.
  */
-import type { Listing, Review, NewReview, UserPreferences } from '../types';
+import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../types';
 
 /** A shortlisted listing: the full snapshot captured at save time + when. */
 export interface SavedListing {
@@ -16,6 +16,14 @@ export interface SavedListing {
   savedAt: string;
   /** Optional private note the user attached to this saved listing. */
   note?: string;
+}
+
+/** A named, re-runnable search — the full SearchCriteria snapshot + when saved. */
+export interface SavedSearch {
+  id: string;
+  name: string;
+  criteria: SearchCriteria;
+  createdAt: string;
 }
 
 export interface UserStore {
@@ -31,4 +39,9 @@ export interface UserStore {
 
   getReviews(listingId: string): Promise<Review[]>;
   addReview(review: NewReview): Promise<Review>;
+
+  /** Named, re-runnable searches (most-recently-saved first). */
+  listSearches(): Promise<SavedSearch[]>;
+  saveSearch(name: string, criteria: SearchCriteria): Promise<SavedSearch>;
+  deleteSearch(id: string): Promise<void>;
 }

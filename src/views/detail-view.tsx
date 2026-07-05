@@ -12,6 +12,7 @@ import Tag from '../components/tag';
 import SaveButton from '../components/save-button';
 import ReviewForm from '../components/review-form';
 import TrueCostCalculator from '../components/true-cost-calculator';
+import { affordability } from '../lib/affordability';
 import { formatRent, formatBeds, resolveListingUrl, sourceLabel, isListingStale } from '../lib/format';
 
 const ALL_MODES: CommuteMode[] = ['walk', 'transit', 'bike', 'drive'];
@@ -135,6 +136,17 @@ export default function DetailView() {
           <Stat label="Size" value={formatBeds(listing.bedrooms)} />
           <Stat label="Source" value={sourceLabel(listing.source)} />
         </div>
+
+        {(() => {
+          const afford = affordability(listing.rentMonthly, criteria.monthlyIncome);
+          if (!afford) return null;
+          return (
+            <p className={`mt-3 inline-flex rounded-lg px-3 py-1.5 text-sm font-medium ${afford.className}`}>
+              Rent is {afford.pct}% of your monthly income
+              {afford.withinRule ? ' — within the 30% rule.' : ' — above the 30% rule.'}
+            </p>
+          );
+        })()}
 
         <div className="mt-4">
           <Rating

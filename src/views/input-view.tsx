@@ -52,6 +52,7 @@ export default function InputView() {
             workAddress: prefs.workAddress ?? f.workAddress,
             commuteMode: prefs.commuteMode ?? f.commuteMode,
             weights: prefs.weights ?? f.weights,
+            monthlyIncome: prefs.monthlyIncome ?? f.monthlyIncome,
           };
         });
       })
@@ -176,6 +177,29 @@ export default function InputView() {
             }
           >
             <Slider min={800} max={8000} step={50} value={form.maxRent} onChange={(v) => set({ maxRent: v })} />
+          </Field>
+
+          <Field
+            label="Monthly take-home"
+            hint="Optional — we'll flag how each rent sits against the 30% rule."
+          >
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                $
+              </span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={100}
+                placeholder="e.g. 6,500"
+                value={form.monthlyIncome ?? ''}
+                onChange={(e) =>
+                  set({ monthlyIncome: e.target.value ? Number(e.target.value) : undefined })
+                }
+                className="input pl-7"
+              />
+            </div>
           </Field>
 
           <Field label="Bedrooms">

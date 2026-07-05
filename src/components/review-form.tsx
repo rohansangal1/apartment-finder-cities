@@ -1,5 +1,8 @@
 import { useState } from 'react';
 
+/** Max review length — mirrors the DB check constraint in migration 0004. */
+const MAX_REVIEW_LEN = 2000;
+
 /** A review draft minus listingId (the parent supplies that on submit). */
 export type ReviewDraft = {
   stars: number;
@@ -67,9 +70,13 @@ export default function ReviewForm({
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={3}
+        maxLength={MAX_REVIEW_LEN}
         placeholder="What was it like living here?"
         className="input mt-2 resize-none"
       />
+      <p className="mt-1 text-right text-xs text-slate-400 tabular-nums">
+        {text.length}/{MAX_REVIEW_LEN}
+      </p>
 
       <label className="mt-2 flex items-center gap-2 text-sm text-slate-600">
         <input

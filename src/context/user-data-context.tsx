@@ -17,8 +17,8 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import type { Listing, Review, NewReview, UserPreferences } from '../lib/types';
-import type { UserStore, SavedListing } from '../lib/user-data/types';
+import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../lib/types';
+import type { UserStore, SavedListing, SavedSearch } from '../lib/user-data/types';
 import { localStore, clearLocalSaved } from '../lib/user-data/local-store';
 import { createSupabaseStore } from '../lib/user-data/supabase-store';
 import { supabase } from '../lib/supabase';
@@ -35,6 +35,9 @@ interface UserDataContextValue {
   addReview: (review: NewReview) => Promise<Review>;
   getPreferences: () => Promise<UserPreferences | null>;
   savePreferences: (prefs: UserPreferences) => Promise<void>;
+  savedSearches: SavedSearch[];
+  saveSearch: (name: string, criteria: SearchCriteria) => Promise<SavedSearch>;
+  deleteSearch: (id: string) => Promise<void>;
 }
 
 const UserDataContext = createContext<UserDataContextValue | null>(null);
@@ -49,6 +52,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   }, [enabled, user]);
 
   const [savedListings, setSavedListings] = useState<SavedListing[]>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const savedIds = useMemo(
     () => new Set(savedListings.map((s) => s.listing.id)),
     [savedListings]
@@ -82,6 +86,21 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         console.error('Failed to load saved listings', e);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+  }, [store]);
+
+  // Load saved searches from the active store (re-runs on sign-in/out). Fails
+  // soft: if the saved_searches table isn't migrated yet, we just show none.
+  useEffect(() => {
+    let cancelled = false;
+    store
+      .listSearches()
+      .then((s) => {
+        if (!cancelled) setSavedSearches(s);
+      })
+      .catch((e) => console.error('Failed to load saved searches', e));
     return () => {
       cancelled = true;
     };
@@ -127,6 +146,29 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
   // Stable identities tied to the active store, so consumers' effects only
   // re-run when the store actually changes (i.e. on sign-in/out), not every render.
+  const saveSearch = useCallback(
+    async (name: string, criteria: SearchCriteria) => {
+      const created = await store.saveSearch(name, criteria);
+      setSavedSearches((cur) => [created, ...cur]);
+      return created;
+    },
+    [store]
+  );
+
+  const deleteSearch = useCallback(
+    async (id: string) => {
+      const prev = savedSearches;
+      setSavedSearches((cur) => cur.filter((s) => s.id !== id)); // optimistic
+      try {
+        await store.deleteSearch(id);
+      } catch (e) {
+        console.error('Failed to delete saved search', e);
+        setSavedSearches(prev); // roll back
+      }
+    },
+    [store, savedSearches]
+  );
+
   const getReviews = useCallback((listingId: string) => store.getReviews(listingId), [store]);
   const addReview = useCallback((review: NewReview) => store.addReview(review), [store]);
   const getPreferences = useCallback(() => store.getPreferences(), [store]);
@@ -146,6 +188,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     addReview,
     getPreferences,
     savePreferences,
+    savedSearches,
+    saveSearch,
+    deleteSearch,
   };
 
   return <UserDataContext.Provider value={value}>{children}</UserDataContext.Provider>;

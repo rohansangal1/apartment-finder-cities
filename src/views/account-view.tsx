@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { useAuth } from '../context/auth-context';
 import { useUserData } from '../context/user-data-context';
@@ -14,9 +15,15 @@ import AuthForm from '../components/auth-form';
  */
 export default function AccountView() {
   const { enabled, user, signOut } = useAuth();
-  const { savePreferences } = useUserData();
-  const { criteria } = useSearch();
+  const { savePreferences, savedSearches, deleteSearch } = useUserData();
+  const { criteria, search } = useSearch();
+  const navigate = useNavigate();
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  const runSearch = (c: typeof criteria) => {
+    void search(c);
+    navigate('/results');
+  };
 
   const saveCurrentAsDefaults = async () => {
     setSaveState('saving');
@@ -26,6 +33,7 @@ export default function AccountView() {
         workAddress: criteria.workAddress,
         commuteMode: criteria.commuteMode,
         weights: criteria.weights,
+        monthlyIncome: criteria.monthlyIncome,
       });
       setSaveState('saved');
       setTimeout(() => setSaveState('idle'), 2000);
@@ -82,6 +90,52 @@ export default function AccountView() {
       ) : (
         /* Signed-out / guest state — self-service sign-up, sign-in, or Google. */
         <AuthForm />
+      )}
+
+      {savedSearches.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+            Your searches
+          </h3>
+          <ul className="mt-3 space-y-2">
+            {savedSearches.map((s) => (
+              <li
+                key={s.id}
+                className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2"
+              >
+                <button
+                  type="button"
+                  onClick={() => runSearch(s.criteria)}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  <span className="block truncate text-sm font-semibold text-slate-900">
+                    {s.name}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {s.criteria.inPerson ? s.criteria.commuteMode : 'remote'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runSearch(s.criteria)}
+                  className="shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+                >
+                  Re-run
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void deleteSearch(s.id)}
+                  aria-label={`Delete saved search ${s.name}`}
+                  className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:text-rose-400"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18M8 6V4h8v2m-9 0v14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6" />
+                  </svg>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">

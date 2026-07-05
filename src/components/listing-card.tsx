@@ -14,6 +14,8 @@ import {
   resolveListingUrl,
   isListingStale,
 } from '../lib/format';
+import { allInMonthlyCost } from '../lib/true-cost';
+import { affordability } from '../lib/affordability';
 
 /**
  * Results-view card for one scored listing. A photo/generated visual header
@@ -27,12 +29,15 @@ import {
 export default function ListingCard({
   scored,
   inPerson,
+  monthlyIncome,
   onHover,
   highlighted = false,
   compareSlot,
 }: {
   scored: ScoredListing;
   inPerson: boolean;
+  /** When set, shows the affordability badge (rent vs the 30% rule). */
+  monthlyIncome?: number;
   onHover?: (id: string | null) => void;
   highlighted?: boolean;
   compareSlot?: ReactNode;
@@ -40,6 +45,7 @@ export default function ListingCard({
   const { listing, matchScore, commuteMinutes, commuteMode, whyItMatched, subScores } = scored;
   const stale = isListingStale(listing);
   const { url, isFallback } = resolveListingUrl(listing, stale);
+  const afford = affordability(listing.rentMonthly, monthlyIncome);
 
   return (
     <div
@@ -93,6 +99,19 @@ export default function ListingCard({
                 {formatCommute(commuteMinutes, commuteMode)}
               </span>
             </>
+          )}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <p className="data text-xs text-slate-400">
+            ~{formatRent(allInMonthlyCost(scored))}/mo all-in
+          </p>
+          {afford && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${afford.className}`}
+              title={afford.withinRule ? 'At or under the 30% rule' : 'Above the 30% rule'}
+            >
+              {afford.withinRule ? `Fits 30% rule · ${afford.pct}%` : afford.label}
+            </span>
           )}
         </div>
 

@@ -8,6 +8,7 @@ import ScoreBreakdown from '../components/score-breakdown';
 import Rating from '../components/rating';
 import Tag from '../components/tag';
 import { formatRent, formatBeds, formatCommute } from '../lib/format';
+import { allInMonthlyCost } from '../lib/true-cost';
 
 /**
  * Side-by-side comparison of the compare shortlist (2–3 listings). One column per
@@ -43,6 +44,7 @@ export default function CompareView() {
 
   // Best-in-row targets. Commute only counts entries where it actually applies.
   const bestRent = Math.min(...entries.map((e) => e.listing.rentMonthly));
+  const bestAllIn = Math.min(...entries.map((e) => allInMonthlyCost(e)));
   const bestScore = Math.max(...entries.map((e) => e.matchScore));
   const commuteVals = entries.filter((e) => e.commuteApplies).map((e) => e.commuteMinutes);
   const bestCommute = commuteVals.length ? Math.min(...commuteVals) : null;
@@ -79,6 +81,13 @@ export default function CompareView() {
                   <span className="data font-semibold text-slate-900">
                     {formatRent(e.listing.rentMonthly)}
                   </span>
+                </Cell>
+              ))}
+            </Row>
+            <Row label="All-in / mo">
+              {entries.map((e) => (
+                <Cell key={e.listing.id} best={allInMonthlyCost(e) === bestAllIn}>
+                  <span className="data text-slate-700">~{formatRent(allInMonthlyCost(e))}</span>
                 </Cell>
               ))}
             </Row>

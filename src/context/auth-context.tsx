@@ -33,6 +33,13 @@ export interface SignUpParams {
 export interface SignUpResult {
   /** True when Supabase requires email confirmation before a session is created. */
   needsEmailConfirmation: boolean;
+  /**
+   * True when the email is (very likely) already registered. Supabase obfuscates
+   * this for anti-enumeration — on a duplicate sign-up it returns a success with
+   * an empty `identities` array and no session — so we surface a gentle,
+   * non-committal hint rather than a hard "email taken" error.
+   */
+  alreadyRegistered: boolean;
 }
 
 interface AuthContextValue {
@@ -87,6 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUpWithPassword = useCallback(
     async ({ firstName, lastName, email, password }: SignUpParams): Promise<SignUpResult> => {
       if (!supabase) throw new Error('Auth is not configured.');
+      // Defense-in-depth: enforce a minimum password length in code too, not just
+      // via the input's minLength (also set a minimum in the Supabase dashboard).
+      if (password.length < 8) throw new Error('Password must be at least 8 characters.');
       const first = firstName.trim();
       const last = lastName.trim();
       const { data, error } = await supabase.auth.signUp({
@@ -104,10 +114,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
       if (error) throw error;
-      // With "Confirm email" on, signUp returns a user but no session until the
-      // link is clicked. Detect that so the UI can show a "check your email" state
-      // instead of assuming the user is signed in.
-      return { needsEmailConfirmation: !data.session };
+      // Anti-enumeration: a sign-up for an already-registered email comes back as
+      // a success with no session and an empty `identities` array. Treat that as
+      // "already registered" so we don't mislead them with a "check your email".
+      const identities = data.user?.identities;
+      const alreadyRegistered =
+        !data.session && Array.isArray(identities) && identities.length === 0;
+      // With "Confirm email" on, a genuine new sign-up returns a user but no
+      // session until the link is clicked — show a "check your email" state then.
+      return {
+        needsEmailConfirmation: !data.session && !alreadyRegistered,
+        alreadyRegistered,
+      };
     },
     []
   );

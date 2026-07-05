@@ -4,7 +4,7 @@
  * so the UI can show an honest ballpark, not a false-precision figure. Real
  * utility/commute data can slot in behind the same shapes later.
  */
-import type { CommuteMode } from './types';
+import type { CommuteMode, ScoredListing } from './types';
 
 export interface TrueCostAssumptions {
   /** Days per week commuting to the office (0–7). Drives commute cost. */
@@ -70,4 +70,19 @@ export function trueMonthlyCost(
   const utilities = a.utilitiesIncluded ? 0 : estimateUtilities(bedrooms);
   const commute = estimateCommuteCost(mode, oneWayMinutes, a);
   return { rent, utilities, commute, total: rent + utilities + commute };
+}
+
+/**
+ * All-in monthly cost for a scored listing, using DEFAULT_ASSUMPTIONS — the
+ * figure used to rank ("cheapest all-in") and to label cards/compare. The
+ * detail-page calculator stays interactive with its own assumptions; this is the
+ * comparable, assumption-fixed number. Commute cost only counts when the search
+ * actually has a commute (remote / saved snapshots → 0).
+ */
+export function allInMonthlyCost(
+  scored: ScoredListing,
+  a: TrueCostAssumptions = DEFAULT_ASSUMPTIONS
+): number {
+  const oneWay = scored.commuteApplies ? scored.commuteMinutes : 0;
+  return trueMonthlyCost(scored.listing.rentMonthly, scored.listing.bedrooms, scored.commuteMode, oneWay, a).total;
 }

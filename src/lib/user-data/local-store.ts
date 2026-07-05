@@ -4,14 +4,15 @@
  * to the mock dataClient for reads and are not writable (writing needs a real
  * identity, gated behind sign-in).
  */
-import type { Review, NewReview, UserPreferences } from '../types';
-import type { UserStore, SavedListing } from './types';
+import type { Review, NewReview, UserPreferences, SearchCriteria } from '../types';
+import type { UserStore, SavedListing, SavedSearch } from './types';
 import { getReviews as getMockReviews } from '../data-client';
 
 // v2: entries are full SavedListing snapshots, not bare ids. The old v1 key
 // (ids only) is intentionally not migrated — those can't be rehydrated anyway.
 const SAVED_KEY = 'nestle.saved.v2';
 const PREFS_KEY = 'nestle.prefs.v1';
+const SEARCHES_KEY = 'nestle.searches.v1';
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -69,6 +70,28 @@ export const localStore: UserStore = {
 
   async addReview(_review: NewReview): Promise<Review> {
     throw new Error('Sign in to write a review.');
+  },
+
+  async listSearches() {
+    return readJson<SavedSearch[]>(SEARCHES_KEY, []);
+  },
+
+  async saveSearch(name: string, criteria: SearchCriteria) {
+    const entry: SavedSearch = {
+      id: crypto.randomUUID(),
+      name,
+      criteria,
+      createdAt: new Date().toISOString(),
+    };
+    writeJson(SEARCHES_KEY, [entry, ...readJson<SavedSearch[]>(SEARCHES_KEY, [])]);
+    return entry;
+  },
+
+  async deleteSearch(id: string) {
+    writeJson(
+      SEARCHES_KEY,
+      readJson<SavedSearch[]>(SEARCHES_KEY, []).filter((s) => s.id !== id)
+    );
   },
 };
 

@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useSearch } from '../context/search-context';
+import { useUserData } from '../context/user-data-context';
 import { useMediaQuery } from '../lib/use-media-query';
-import type { ScoredListing } from '../lib/types';
+import type { ScoredListing, SearchCriteria } from '../lib/types';
 import { SORTERS } from '../lib/search-service';
 import ListingCard from '../components/listing-card';
 import ListingSkeleton from '../components/listing-skeleton';
@@ -20,12 +21,14 @@ const ResultsMap = lazy(() => import('../components/results-map'));
 const SORT_OPTIONS = [
   { value: 'match', label: 'Best match' },
   { value: 'price', label: 'Lowest price' },
+  { value: 'truecost', label: 'Cheapest all-in' },
   { value: 'commute', label: 'Shortest commute' },
 ];
 
 /** Ranked recommendations with a sort toggle. */
 export default function ResultsView() {
   const { results, status, error, hasSearched, criteria } = useSearch();
+  const { saveSearch } = useUserData();
   const [sort, setSort] = useState('match');
   const [view, setView] = useState<'list' | 'map'>('list');
   const [filters, setFilters] = useState<ResultFilters>(EMPTY_FILTERS);
@@ -98,6 +101,9 @@ export default function ResultsView() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <SaveSearchButton
+            onSave={() => saveSearch(searchName(criteria), criteria)}
+          />
           {(isDesktop || view === 'list') && (
             <label>
               <span className="sr-only">Sort by</span>
@@ -157,7 +163,7 @@ export default function ResultsView() {
         // Split: scrolling list on the left, sticky map on the right. The map is
         // only mounted here (desktop) or in mobile map view, so leaflet stays lazy.
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,44%)]">
-          <div>{renderList(sorted, criteria.inPerson, cardRefs, setHoveredId, hoveredId)}</div>
+          <div>{renderList(sorted, criteria, cardRefs, setHoveredId, hoveredId)}</div>
           <div>
             <div className="sticky top-[105px]">
               <Suspense
@@ -180,7 +186,7 @@ export default function ResultsView() {
           <ResultsMap scored={sorted} highlightedId={hoveredId ?? undefined} onSelect={handleMapSelect} />
         </Suspense>
       ) : (
-        renderList(sorted, criteria.inPerson, cardRefs, setHoveredId, hoveredId)
+        renderList(sorted, criteria, cardRefs, setHoveredId, hoveredId)
       )}
 
       <div className="mt-6 text-center">
@@ -197,7 +203,7 @@ export default function ResultsView() {
  * gets a brand ring while its pin is the active one. */
 function renderList(
   sorted: ScoredListing[],
-  inPerson: boolean,
+  criteria: SearchCriteria,
   cardRefs: { current: Map<string, HTMLDivElement> },
   onHover: (id: string | null) => void,
   hoveredId: string | null
@@ -216,7 +222,8 @@ function renderList(
         >
           <ListingCard
             scored={scored}
-            inPerson={inPerson}
+            inPerson={criteria.inPerson}
+            monthlyIncome={criteria.monthlyIncome}
             onHover={onHover}
             highlighted={hoveredId === scored.listing.id}
             compareSlot={<CompareToggle entry={scored} />}
@@ -224,6 +231,40 @@ function renderList(
         </div>
       ))}
     </div>
+  );
+}
+
+/** A short human label for a saved search, e.g. "San Francisco · 1BR · ≤$3,500". */
+function searchName(criteria: SearchCriteria): string {
+  const beds = criteria.bedrooms === 0 ? 'Studio' : `${criteria.bedrooms}BR`;
+  return `${criteria.city} · ${beds} · ≤$${criteria.maxRent.toLocaleString()}`;
+}
+
+/** "Save search" button with brief saved/failed feedback. Available to guests
+ * (localStorage) and signed-in users (synced); fails soft if the store errors. */
+function SaveSearchButton({ onSave }: { onSave: () => Promise<unknown> }) {
+  const [state, setState] = useState<'idle' | 'saved' | 'error'>('idle');
+  const click = async () => {
+    try {
+      await onSave();
+      setState('saved');
+    } catch {
+      setState('error');
+    }
+    setTimeout(() => setState('idle'), 2200);
+  };
+  return (
+    <button
+      type="button"
+      onClick={click}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-ink px-2.5 py-1.5 text-sm font-medium text-slate-700 transition hover:text-slate-900"
+    >
+      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+        <path d="M17 21v-8H7v8M7 3v5h8" />
+      </svg>
+      {state === 'saved' ? 'Saved' : state === 'error' ? 'Try again' : 'Save search'}
+    </button>
   );
 }
 

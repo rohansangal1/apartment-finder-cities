@@ -51,6 +51,9 @@ export interface SearchCriteria {
   bedrooms: number;
   commuteMode: CommuteMode;
   weights: Weights;
+  /** Optional monthly take-home income, for the affordability lens (30% rule).
+   * Undefined/0 = the feature is off (no badge shown, scoring unaffected). */
+  monthlyIncome?: number;
 }
 
 /** First-party reviews — exist from day one (cold-start handoff). */
@@ -112,6 +115,7 @@ export interface UserPreferences {
   workAddress?: string;
   commuteMode?: CommuteMode;
   weights?: Weights;
+  monthlyIncome?: number;
 }
 
 /** A review as submitted by a user, before the store assigns id/createdAt. */

@@ -7,8 +7,8 @@
  * (RLS enforces it server-side too; this keeps the client honest).
  */
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import type { Listing, Review, NewReview, UserPreferences } from '../types';
-import type { UserStore, SavedListing } from './types';
+import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../types';
+import type { UserStore, SavedListing, SavedSearch } from './types';
 
 interface ReviewRow {
   id: string;
@@ -83,12 +83,16 @@ export function createSupabaseStore(supabase: SupabaseClient, user: User): UserS
         .maybeSingle();
       if (error) throw error;
       if (!data) return null;
-      const prefs = (data.default_prefs ?? {}) as Pick<UserPreferences, 'commuteMode' | 'weights'>;
+      const prefs = (data.default_prefs ?? {}) as Pick<
+        UserPreferences,
+        'commuteMode' | 'weights' | 'monthlyIncome'
+      >;
       return {
         homeCity: data.home_city ?? undefined,
         workAddress: data.default_work_address ?? undefined,
         commuteMode: prefs.commuteMode,
         weights: prefs.weights,
+        monthlyIncome: prefs.monthlyIncome,
       };
     },
 
@@ -104,7 +108,11 @@ export function createSupabaseStore(supabase: SupabaseClient, user: User): UserS
           last_name: (meta.last_name as string | undefined) ?? null,
           home_city: prefs.homeCity ?? null,
           default_work_address: prefs.workAddress ?? null,
-          default_prefs: { commuteMode: prefs.commuteMode, weights: prefs.weights },
+          default_prefs: {
+            commuteMode: prefs.commuteMode,
+            weights: prefs.weights,
+            monthlyIncome: prefs.monthlyIncome,
+          },
         },
         { onConflict: 'id' }
       );
@@ -135,6 +143,47 @@ export function createSupabaseStore(supabase: SupabaseClient, user: User): UserS
         .single();
       if (error) throw error;
       return toReview(data as ReviewRow);
+    },
+
+    async listSearches() {
+      const { data, error } = await supabase
+        .from('saved_searches')
+        .select('id, name, criteria, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map(
+        (r): SavedSearch => ({
+          id: r.id as string,
+          name: r.name as string,
+          criteria: r.criteria as SearchCriteria,
+          createdAt: r.created_at as string,
+        })
+      );
+    },
+
+    async saveSearch(name: string, criteria: SearchCriteria) {
+      const { data, error } = await supabase
+        .from('saved_searches')
+        .insert({ user_id: user.id, name, criteria })
+        .select('id, name, criteria, created_at')
+        .single();
+      if (error) throw error;
+      return {
+        id: data.id as string,
+        name: data.name as string,
+        criteria: data.criteria as SearchCriteria,
+        createdAt: data.created_at as string,
+      };
+    },
+
+    async deleteSearch(id: string) {
+      const { error } = await supabase
+        .from('saved_searches')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('id', id);
+      if (error) throw error;
     },
   };
 }

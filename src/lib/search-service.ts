@@ -11,6 +11,7 @@
 import type { SearchCriteria, ScoredListing, GeoPoint } from './types';
 import { getListings, getCommute, getRating, geocode, serverSearch } from './data-client';
 import { scoreListing, computeSubScores, explainMatch } from './scoring';
+import { allInMonthlyCost } from './true-cost';
 
 /** Run a full search and return ranked, scored listings (best first). */
 export async function runSearch(criteria: SearchCriteria): Promise<ScoredListing[]> {
@@ -72,4 +73,6 @@ export const SORTERS: Record<string, (a: ScoredListing, b: ScoredListing) => num
   match: (a, b) => b.matchScore - a.matchScore,
   price: (a, b) => a.listing.rentMonthly - b.listing.rentMonthly,
   commute: (a, b) => a.commuteMinutes - b.commuteMinutes,
+  // All-in cost (rent + est. utilities + est. commute), cheapest first.
+  truecost: (a, b) => allInMonthlyCost(a) - allInMonthlyCost(b),
 };

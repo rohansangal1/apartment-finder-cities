@@ -36,13 +36,19 @@ export default function AuthForm() {
     setBusy(true);
     try {
       if (mode === 'signup') {
-        const { needsEmailConfirmation } = await signUpWithPassword({
+        const { needsEmailConfirmation, alreadyRegistered } = await signUpWithPassword({
           firstName,
           lastName,
           email,
           password,
         });
-        if (needsEmailConfirmation) {
+        if (alreadyRegistered) {
+          setMode('signin');
+          setPassword('');
+          setNotice(
+            'An account with this email already exists. Try signing in, or reset your password.'
+          );
+        } else if (needsEmailConfirmation) {
           setNotice(`Check your email — we sent a confirmation link to ${email.trim()}.`);
           setPassword('');
         }
@@ -156,9 +162,12 @@ export default function AuthForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          minLength={6}
+          minLength={mode === 'signup' ? 8 : undefined}
           disabled={disabled}
         />
+        {mode === 'signup' && (
+          <p className="text-xs text-slate-400">At least 8 characters.</p>
+        )}
 
         {error && <p className="text-sm text-rose-600">{error}</p>}
         {notice && <p className="text-sm text-emerald-600">{notice}</p>}

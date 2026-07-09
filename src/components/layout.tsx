@@ -35,14 +35,26 @@ interface NavItem {
   label: string;
   icon: (props: { className?: string }) => JSX.Element;
   end?: boolean;
+  /** Show only on the desktop top bar (keeps the mobile tab bar uncrowded). */
+  desktopOnly?: boolean;
+  /** Show only on the mobile bottom bar (the grouped "Connect" tab). */
+  mobileOnly?: boolean;
 }
 
+// Roommates + Agents get their own desktop links, but fold behind one "Connect"
+// tab on mobile so the bottom bar stays at five thumb-reachable tabs.
 const NAV: NavItem[] = [
   { to: '/', label: 'Search', icon: SearchIcon, end: true },
   { to: '/results', label: 'Results', icon: ListIcon },
   { to: '/saved', label: 'Saved', icon: HeartIcon },
+  { to: '/roommates', label: 'Roommates', icon: PeopleIcon, desktopOnly: true },
+  { to: '/agents', label: 'Agents', icon: BadgeIcon, desktopOnly: true },
+  { to: '/connect', label: 'Connect', icon: PeopleIcon, mobileOnly: true },
   { to: '/account', label: 'Account', icon: UserIcon },
 ];
+
+const DESKTOP_NAV = NAV.filter((i) => !i.mobileOnly);
+const MOBILE_NAV = NAV.filter((i) => !i.desktopOnly);
 
 function TopBar({ maxW }: { maxW: string }) {
   return (
@@ -55,7 +67,7 @@ function TopBar({ maxW }: { maxW: string }) {
           <span className="font-serif text-xl font-semibold tracking-tight text-brand-700">Nester</span>
         </Link>
         <nav className="hidden items-center gap-1 sm:flex">
-          {NAV.map((item) => (
+          {DESKTOP_NAV.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -80,7 +92,7 @@ function MobileTabBar() {
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-ink-600/70 bg-ink-950/90 backdrop-blur sm:hidden">
       <div className="mx-auto flex max-w-3xl items-stretch justify-around">
-        {NAV.map((item) => {
+        {MOBILE_NAV.map((item) => {
           const active = item.end ? pathname === item.to : pathname.startsWith(item.to);
           const Icon = item.icon;
           return (
@@ -152,6 +164,25 @@ function UserIcon({ className }: { className?: string }) {
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+    </svg>
+  );
+}
+function PeopleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M2.5 20c0-3.3 2.9-5 6.5-5s6.5 1.7 6.5 5" />
+      <path d="M16 5.2a3.2 3.2 0 0 1 0 6.1" />
+      <path d="M17.5 14.4c2.6.5 4 2.1 4 4.6" />
+    </svg>
+  );
+}
+function BadgeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="7" width="18" height="13" rx="2" />
+      <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      <path d="M3 12h18" />
     </svg>
   );
 }

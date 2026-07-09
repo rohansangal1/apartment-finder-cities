@@ -6,6 +6,7 @@
  */
 import type { Review, NewReview, UserPreferences, SearchCriteria } from '../types';
 import type { UserStore, SavedListing, SavedSearch, SavedAddress } from './types';
+import type { SocialProfile } from '../social/types';
 import { getReviews as getMockReviews } from '../data-client';
 
 // v2: entries are full SavedListing snapshots, not bare ids. The old v1 key
@@ -14,6 +15,7 @@ const SAVED_KEY = 'nestle.saved.v2';
 const PREFS_KEY = 'nestle.prefs.v1';
 const SEARCHES_KEY = 'nestle.searches.v1';
 const ADDRESSES_KEY = 'nestle.addresses.v1';
+const SOCIAL_KEY = 'nestle.social.v1';
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -115,6 +117,16 @@ export const localStore: UserStore = {
       ADDRESSES_KEY,
       readJson<SavedAddress[]>(ADDRESSES_KEY, []).filter((a) => a.id !== id)
     );
+  },
+
+  async getSocialProfile() {
+    return readJson<SocialProfile | null>(SOCIAL_KEY, null);
+  },
+
+  async saveSocialProfile(profile: SocialProfile) {
+    // Guests aren't in the match pool, so opt-in is inert here; we still persist
+    // the profile so the toggle/fields survive a refresh before they sign in.
+    writeJson(SOCIAL_KEY, profile);
   },
 };
 

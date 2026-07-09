@@ -19,6 +19,7 @@ import {
 } from 'react';
 import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../lib/types';
 import type { UserStore, SavedListing, SavedSearch, SavedAddress } from '../lib/user-data/types';
+import type { SocialProfile } from '../lib/social/types';
 import { localStore, clearLocalSaved } from '../lib/user-data/local-store';
 import { createSupabaseStore } from '../lib/user-data/supabase-store';
 import { createDocumentsClient, type DocumentsClient } from '../lib/user-data/documents';
@@ -36,6 +37,8 @@ interface UserDataContextValue {
   addReview: (review: NewReview) => Promise<Review>;
   getPreferences: () => Promise<UserPreferences | null>;
   savePreferences: (prefs: UserPreferences) => Promise<void>;
+  getSocialProfile: () => Promise<SocialProfile | null>;
+  saveSocialProfile: (profile: SocialProfile) => Promise<void>;
   savedSearches: SavedSearch[];
   saveSearch: (name: string, criteria: SearchCriteria) => Promise<SavedSearch>;
   deleteSearch: (id: string) => Promise<void>;
@@ -231,6 +234,11 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     (prefs: UserPreferences) => store.savePreferences(prefs),
     [store]
   );
+  const getSocialProfile = useCallback(() => store.getSocialProfile(), [store]);
+  const saveSocialProfile = useCallback(
+    (profile: SocialProfile) => store.saveSocialProfile(profile),
+    [store]
+  );
 
   const value: UserDataContextValue = {
     savedListings,
@@ -243,6 +251,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     addReview,
     getPreferences,
     savePreferences,
+    getSocialProfile,
+    saveSocialProfile,
     savedSearches,
     saveSearch,
     deleteSearch,

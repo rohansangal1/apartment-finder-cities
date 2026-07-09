@@ -4,6 +4,8 @@ import { useAuth } from '../context/auth-context';
 import { useUserData } from '../context/user-data-context';
 import { useSearch } from '../context/search-context';
 import AuthForm from '../components/auth-form';
+import RoommateOptInCard from '../components/roommate-optin-card';
+import AgentOnboardingCard from '../components/agent-onboarding-card';
 
 /**
  * Account view. With Supabase configured, users can create an account with
@@ -80,7 +82,17 @@ export default function AccountView() {
             Sign out
           </button>
         </div>
-      ) : (
+      ) : null}
+
+      {/* Social layer — opt-in roommate matching + agent self-listing. Signed-in only. */}
+      {enabled && user && (
+        <>
+          <RoommateOptInCard />
+          <AgentOnboardingCard />
+        </>
+      )}
+
+      {!(enabled && user) && (
         /* Signed-out / guest state — self-service sign-up, sign-in, or Google. */
         <AuthForm />
       )}

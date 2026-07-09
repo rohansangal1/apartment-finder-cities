@@ -9,6 +9,7 @@
  * never branch on "are we signed in" for storage — they just call the store.
  */
 import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../types';
+import type { SocialProfile } from '../social/types';
 
 /** A shortlisted listing: the full snapshot captured at save time + when. */
 export interface SavedListing {
@@ -59,4 +60,11 @@ export interface UserStore {
   listAddresses(): Promise<SavedAddress[]>;
   saveAddress(label: string, address: string): Promise<SavedAddress>;
   deleteAddress(id: string): Promise<void>;
+
+  /** The user's opt-in social profile (roommate matching). Null when not set /
+   * unavailable (guest, or table not migrated) — treated as opted-out. */
+  getSocialProfile(): Promise<SocialProfile | null>;
+  /** Upsert the social profile; when opted-in this also refreshes the derived
+   * roommate signal from current saves (Supabase store only). */
+  saveSocialProfile(profile: SocialProfile): Promise<void>;
 }

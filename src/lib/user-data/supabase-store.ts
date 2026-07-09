@@ -9,6 +9,8 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../types';
 import type { UserStore, SavedListing, SavedSearch, SavedAddress } from './types';
+import type { SocialProfile } from '../social/types';
+import { buildRoommateSignal } from '../match/roommate-signal';
 
 interface ReviewRow {
   id: string;
@@ -31,6 +33,30 @@ const toReview = (r: ReviewRow): Review => ({
 });
 
 export function createSupabaseStore(supabase: SupabaseClient, user: User): UserStore {
+  // Recompute and persist the derived roommate signal from the user's current
+  // saves — but ONLY if they've opted in. Called after saves change and on
+  // profile save. Best-effort: never let a signal write break the caller (the
+  // save itself already succeeded), so failures are swallowed by callers.
+  async function refreshRoommateSignal(): Promise<void> {
+    const { data } = await supabase
+      .from('social_profiles')
+      .select('roommate_opt_in')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!data?.roommate_opt_in) return; // opted out → nothing to expose
+    const saved = await supabase
+      .from('saved_listings')
+      .select('listing')
+      .eq('user_id', user.id);
+    const listings = (saved.data ?? [])
+      .map((r) => r.listing as Listing | null)
+      .filter((l): l is Listing => Boolean(l));
+    await supabase
+      .from('social_profiles')
+      .update({ roommate_signal: buildRoommateSignal(listings), updated_at: new Date().toISOString() })
+      .eq('user_id', user.id);
+  }
+
   return {
     async listSaved() {
       const { data, error } = await supabase
@@ -64,6 +90,10 @@ export function createSupabaseStore(supabase: SupabaseClient, user: User): UserS
           .eq('listing_id', listing.id);
         if (error) throw error;
       }
+      // Keep the roommate signal in step with saves (opted-in users only). The
+      // save above already succeeded, so a signal-refresh failure must not
+      // surface as a failed save — swallow it.
+      refreshRoommateSignal().catch((e) => console.error('signal refresh failed', e));
     },
 
     async setNote(listingId, note) {
@@ -225,6 +255,57 @@ export function createSupabaseStore(supabase: SupabaseClient, user: User): UserS
         .eq('user_id', user.id)
         .eq('id', id);
       if (error) throw error;
+    },
+
+    async getSocialProfile() {
+      const { data, error } = await supabase
+        .from('social_profiles')
+        .select('roommate_opt_in, display_name, bio, age_range, move_in_month, budget_min, budget_max, contact_email')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      return {
+        roommateOptIn: Boolean(data.roommate_opt_in),
+        displayName: data.display_name ?? undefined,
+        bio: data.bio ?? undefined,
+        ageRange: data.age_range ?? undefined,
+        moveInMonth: data.move_in_month ?? undefined,
+        budgetMin: data.budget_min ?? undefined,
+        budgetMax: data.budget_max ?? undefined,
+        contactEmail: data.contact_email ?? undefined,
+      } satisfies SocialProfile;
+    },
+
+    async saveSocialProfile(profile: SocialProfile) {
+      // Default the contact email to the account email so the reveal-on-accept
+      // flow has something to hand over even if the user didn't type one.
+      const { error } = await supabase.from('social_profiles').upsert(
+        {
+          user_id: user.id,
+          roommate_opt_in: profile.roommateOptIn,
+          display_name: profile.displayName ?? null,
+          bio: profile.bio ?? null,
+          age_range: profile.ageRange ?? null,
+          move_in_month: profile.moveInMonth ?? null,
+          budget_min: profile.budgetMin ?? null,
+          budget_max: profile.budgetMax ?? null,
+          contact_email: profile.contactEmail ?? user.email ?? null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      );
+      if (error) throw error;
+      // Opting in: publish a fresh signal so matches appear immediately.
+      // Opting out: clear the signal so nothing lingers in the pool.
+      if (profile.roommateOptIn) {
+        await refreshRoommateSignal();
+      } else {
+        await supabase
+          .from('social_profiles')
+          .update({ roommate_signal: null })
+          .eq('user_id', user.id);
+      }
     },
   };
 }

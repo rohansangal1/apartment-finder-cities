@@ -94,11 +94,18 @@ export default {
           '0%': { transform: 'scaleX(0)' },
           '100%': { transform: 'scaleX(1)' },
         },
+        // Dialog entrance: rises and settles into scale. Pair with an origin-*
+        // utility to make a panel appear to spring from the button that opened it.
+        popin: {
+          '0%': { opacity: '0', transform: 'translateY(8px) scale(0.96)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
       },
       animation: {
         fadein: 'fadein 0.7s ease',
         fadeup: 'fadeup 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',
         growbar: 'growbar 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
+        popin: 'popin 0.28s cubic-bezier(0.22, 1, 0.36, 1) both',
       },
     },
   },

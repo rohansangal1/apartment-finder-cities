@@ -2,6 +2,8 @@ import { NavLink, Link, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { DATA_SOURCE } from '../lib/data-client';
 import CompareTray from './compare-tray';
+import WelcomeModal from './welcome-modal';
+import FeedbackWidget from './feedback-widget';
 
 /**
  * App shell: a top bar (logo + desktop nav) and a mobile bottom tab bar. Most
@@ -25,6 +27,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       </main>
       <Footer />
       <CompareTray />
+      <WelcomeModal />
+      <FeedbackWidget />
       <MobileTabBar />
     </div>
   );

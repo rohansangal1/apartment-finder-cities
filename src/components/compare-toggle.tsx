@@ -36,7 +36,7 @@ export default function CompareToggle({
       }
       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition ${
         selected
-          ? 'bg-brand-600 text-white'
+          ? 'text-brand-600 shadow-[inset_0_0_0_1px_#9184d9]'
           : disabled
           ? 'cursor-not-allowed bg-ink-900/70 text-slate-500'
           : 'bg-ink-900/70 text-paper backdrop-blur hover:bg-ink-900'

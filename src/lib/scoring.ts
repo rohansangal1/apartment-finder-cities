@@ -36,11 +36,20 @@ export function computeSubScores(
 ): SubScores {
   const { maxRent } = criteria;
 
-  // Price fit: full marks well under budget, declining toward the cap, penalized over.
-  const priceFit =
-    listing.rentMonthly <= maxRent
-      ? 100 * (1 - listing.rentMonthly / (maxRent * 1.05))
-      : Math.max(0, 100 - ((listing.rentMonthly - maxRent) / maxRent) * 200);
+  // Price fit: how much of the budget the listing leaves unspent. 100 at zero
+  // rent, falling linearly to ~5 at the cap; past the cap the same line keeps
+  // going, twice as steep, until it clamps at 0.
+  //
+  // The two halves used to be written on different scales — the over-budget
+  // branch restarted from 100 — which put a step in the curve right at the cap:
+  // a listing $1 over budget scored ~100 on price while one exactly at budget
+  // scored ~5, so going over budget *improved* price fit and over-budget
+  // listings systematically outranked affordable ones. Both halves now share the
+  // one headroom scale, so the function is continuous and monotonic: more rent
+  // is always a worse price fit, with no reward for crossing the cap.
+  const headroom = 100 * (1 - listing.rentMonthly / (maxRent * 1.05));
+  const overBudgetFraction = Math.max(0, (listing.rentMonthly - maxRent) / maxRent);
+  const priceFit = headroom - overBudgetFraction * 200;
 
   // Commute fit: 100 at 0 min, 0 at the max acceptable commute. Remote = irrelevant.
   const commuteFit = criteria.inPerson

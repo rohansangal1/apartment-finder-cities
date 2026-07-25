@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+// vitest/config re-exports Vite's defineConfig with the `test` block typed.
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // During local dev we run two servers:
@@ -14,5 +15,14 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:3000',
     },
+  },
+  test: {
+    // jsdom for the component tests; the pure lib tests don't care either way
+    // and run fine under it, so one environment keeps the config simple.
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    globals: true,
+    // api/ is serverless code with its own tsconfig and no runtime here.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 });

@@ -6,10 +6,10 @@ import { useEffect, useState } from 'react';
  * kill switch, which zeroes the transition duration). */
 
 function band(score: number) {
-  if (score >= 80) return { stroke: '#34d399', text: 'text-emerald-300' };
-  if (score >= 60) return { stroke: '#6FB78C', text: 'text-brand-700' };
-  if (score >= 40) return { stroke: '#fbbf24', text: 'text-amber-300' };
-  return { stroke: '#8B857D', text: 'text-slate-400' };
+  if (score >= 80) return { stroke: '#b5abfc', text: 'text-brand-700' };
+  if (score >= 60) return { stroke: '#9184d9', text: 'text-brand-600' };
+  if (score >= 40) return { stroke: '#796cbf', text: 'text-brand-300' };
+  return { stroke: '#75798c', text: 'text-slate-400' };
 }
 
 export default function MatchScore({
@@ -43,7 +43,7 @@ export default function MatchScore({
           cy="18"
           r="16"
           fill="none"
-          stroke="#2C2C31"
+          stroke="#3f424d"
           strokeWidth={strokeW}
           pathLength={100}
         />

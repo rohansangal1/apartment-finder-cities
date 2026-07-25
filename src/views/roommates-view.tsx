@@ -10,6 +10,7 @@ import {
   respondConnect,
 } from '../lib/social/client';
 import RoommateCard from '../components/roommate-card';
+import ComingSoonBanner from '../components/coming-soon-banner';
 
 /**
  * Roommates page. Three states:
@@ -81,12 +82,26 @@ export default function RoommatesView() {
   return (
     <div className="space-y-6">
       <header className="pt-2">
-        <h1 className="font-serif text-2xl font-bold tracking-tight text-slate-900">Roommates</h1>
+        <h1 className="text-2xl tracking-tight text-slate-900">Roommates</h1>
         <p className="mt-1 text-sm text-slate-500">
           People searching for the same kind of place. Matched on your cities, budget, and space —
           never your exact saved addresses.
         </p>
       </header>
+
+      {/* Matching needs a pool of opted-in people before it can suggest anyone,
+          so until that exists the page leads with what's coming rather than an
+          empty grid. The signed-in flows below still work for anyone who opts
+          in early. */}
+      <ComingSoonBanner
+        title="Roommate matching is warming up"
+        eta="Opens once enough people have opted in"
+      >
+        We'll match you on the things that actually decide whether sharing works — the cities and
+        neighbourhoods you're both searching, your budgets, and how much space you each need. Your
+        exact saved addresses are never part of a match and are never shown to anyone. Opting in is
+        yours to give and yours to take back.
+      </ComingSoonBanner>
 
       {loading ? (
         <p className="text-sm text-slate-500">Finding people near your search…</p>
@@ -123,15 +138,15 @@ export default function RoommatesView() {
 
 function SignInPrompt() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-ink p-6 text-center shadow-sm">
-      <h2 className="font-serif text-lg font-semibold text-slate-900">Sign in to find roommates</h2>
+    <div className="card p-6 text-center">
+      <h2 className="text-lg text-slate-900">Sign in to find roommates</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
         Matching works off your saved places, budget, and cities, so it needs an account to compare
         against. Nothing is shared until you opt in, and your exact saved addresses never are.
       </p>
       <Link
         to="/account"
-        className="mt-4 inline-block rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+        className="btn-outline mt-4 rounded-xl px-5 py-2.5 text-sm"
       >
         Sign in
       </Link>
@@ -141,15 +156,15 @@ function SignInPrompt() {
 
 function OptInPrompt() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-ink p-6 text-center shadow-sm">
-      <h2 className="font-serif text-lg font-semibold text-slate-900">Roommate matching is off</h2>
+    <div className="card p-6 text-center">
+      <h2 className="text-lg text-slate-900">Roommate matching is off</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
         Turn it on to discover others hunting nearby. You control what's shared, and your exact
         saved addresses and notes stay private.
       </p>
       <Link
         to="/account"
-        className="mt-4 inline-block rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+        className="btn-outline mt-4 rounded-xl px-5 py-2.5 text-sm"
       >
         Enable in Account
       </Link>
@@ -177,7 +192,7 @@ function ConnectionsPanel({
         {incoming.map((c) => (
           <div
             key={c.id}
-            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-ink px-4 py-3 shadow-sm"
+            className="flex items-center justify-between gap-3 card rounded-xl px-4 py-3"
           >
             <p className="text-sm text-slate-700">
               <strong>{c.displayName ?? 'Someone'}</strong> wants to connect
@@ -186,7 +201,7 @@ function ConnectionsPanel({
               <button
                 type="button"
                 onClick={() => void onRespond(c.id, true)}
-                className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+                className="btn-outline rounded-lg px-3 py-1.5 text-xs"
               >
                 Accept
               </button>
@@ -203,7 +218,7 @@ function ConnectionsPanel({
         {accepted.map((c) => (
           <div
             key={c.id}
-            className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50/40 px-4 py-3"
+            className="flex items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3"
           >
             <p className="text-sm text-slate-700">
               Connected with <strong>{c.displayName ?? 'your match'}</strong>
@@ -211,7 +226,7 @@ function ConnectionsPanel({
             {c.contactEmail && (
               <a
                 href={`mailto:${c.contactEmail}`}
-                className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+                className="btn-outline rounded-lg px-3 py-1.5 text-xs"
               >
                 {c.contactEmail}
               </a>

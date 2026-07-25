@@ -14,6 +14,7 @@ import ResultsFilters, {
   matchesFilters,
   type ResultFilters,
 } from '../components/results-filters';
+import EmptyMark, { HouseGlyph } from '../components/empty-mark';
 
 // Leaflet is heavy (~150 kB) and only needed when the user opens the map, so
 // load it on demand to keep the initial bundle lean.
@@ -108,7 +109,7 @@ export default function ResultsView() {
 
   return (
     <div>
-      <div className="sticky top-[57px] z-10 -mx-4 mb-3 flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/95 px-4 py-2.5 backdrop-blur">
+      <div className="sticky top-[65px] z-10 -mx-4 mb-3 flex items-center justify-between gap-3 border-b border-slate-200 bg-slate-50/95 px-4 py-2.5 backdrop-blur">
         <div>
           <h1 className="text-lg font-bold text-slate-900">
             {sorted.length === results.length
@@ -119,6 +120,10 @@ export default function ResultsView() {
             {criteria.inPerson
               ? 'Ranked by your priorities + commute'
               : 'Ranked by your priorities'}
+            {' · '}
+            <Link to="/how-it-works" className="text-brand-700 underline-offset-4 hover:underline">
+              how?
+            </Link>
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -151,7 +156,7 @@ export default function ResultsView() {
                   onClick={() => setView(v)}
                   aria-pressed={view === v}
                   className={`px-2.5 py-1.5 text-sm font-medium capitalize transition ${
-                    view === v ? 'bg-brand-600 text-white' : 'bg-ink text-slate-600 hover:text-slate-900'
+                    view === v ? 'text-brand-600 shadow-[inset_0_0_0_1px_#9184d9]' : 'bg-ink text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   {v}
@@ -168,14 +173,14 @@ export default function ResultsView() {
 
       {sorted.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center motion-safe:animate-fadeup">
-          <h2 className="font-serif text-xl font-semibold text-slate-900">No matches with these filters</h2>
+          <h2 className="text-xl text-slate-900">No matches with these filters</h2>
           <p className="mt-1 max-w-xs text-sm text-slate-500">
             Nothing in {criteria.city} fits every refinement. Loosen one to see more.
           </p>
           <button
             type="button"
             onClick={() => setFilters(EMPTY_FILTERS)}
-            className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+            className="btn-outline mt-4 rounded-lg px-4 py-2 text-sm"
           >
             Clear filters
           </button>
@@ -186,7 +191,7 @@ export default function ResultsView() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,44%)]">
           <div>{renderList(sorted, criteria, cardRefs, setHoveredId, hoveredId, dealScores)}</div>
           <div>
-            <div className="sticky top-[105px]">
+            <div className="sticky top-[113px]">
               <Suspense
                 fallback={<div className="h-[calc(100vh-130px)] animate-pulse rounded-2xl bg-slate-200" />}
               >
@@ -305,21 +310,14 @@ function LoadingState() {
 function EmptyState({ title, body, cta }: { title: string; body: ReactNode; cta?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center motion-safe:animate-fadeup">
-      <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sage text-brand-700">
-        <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9.5 12 3l9 6.5" />
-          <path d="M5 9v11h14V9" />
-          <path d="M9 20v-6h6v6" />
-        </svg>
-      </span>
-      <h2 className="mt-4 font-serif text-2xl font-semibold text-slate-900">{title}</h2>
-      <p className="mt-1 max-w-xs text-sm text-slate-500">{body}</p>
+      <EmptyMark size={120} rings={2} glow>
+        <HouseGlyph />
+      </EmptyMark>
+      <h2 className="mt-9 text-[32px] text-slate-900">{title}</h2>
+      <p className="mt-2.5 max-w-md text-[15px] text-slate-500">{body}</p>
       {cta && (
-        <Link
-          to="/"
-          className="mt-5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-        >
-          Start a search
+        <Link to="/" className="btn-outline mt-7 px-6 py-3 text-[15px]">
+          Start a search →
         </Link>
       )}
     </div>

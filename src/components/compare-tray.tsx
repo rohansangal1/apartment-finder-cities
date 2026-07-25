@@ -43,7 +43,7 @@ export default function CompareTray() {
           {canCompare ? (
             <Link
               to="/compare"
-              className="rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+              className="btn-outline rounded-lg px-3.5 py-2 text-sm"
             >
               Compare ({entries.length})
             </Link>

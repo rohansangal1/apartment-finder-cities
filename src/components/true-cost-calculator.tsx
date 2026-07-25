@@ -30,7 +30,7 @@ export default function TrueCostCalculator({
   const remote = oneWayMinutes <= 0;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+    <section className="card p-5">
       <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">True monthly cost</h2>
 
       {/* Controls */}
@@ -84,7 +84,7 @@ export default function TrueCostCalculator({
         />
         <div className="mt-2 flex items-baseline justify-between border-t border-slate-200 pt-2.5">
           <dt className="text-sm font-medium text-slate-600">Estimated total</dt>
-          <dd className="data font-serif text-2xl font-semibold text-terracotta-700">
+          <dd className="data text-2xl text-terracotta-700">
             {formatRent(total)}
           </dd>
         </div>

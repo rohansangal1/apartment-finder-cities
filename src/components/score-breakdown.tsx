@@ -3,7 +3,9 @@ import type { SubScores } from '../lib/types';
 /**
  * Renders the four 0–100 sub-scores behind a match score as labeled bars, so the
  * aggregate is legible ("why is this an 82?"). Color grading matches MatchScore
- * (≥80 emerald, ≥60 brand, ≥40 amber, else slate) for a consistent visual scale.
+ * walking down the accent ramp (≥80 brightest, then base, then dimmed, else a
+ * neutral) — Nocturne takes contrast from the tonal ramps, not from hue, so the
+ * bars stay one family instead of becoming a traffic light.
  *
  * When the search is remote, the commute dimension doesn't apply — computeSubScores
  * fills it with a neutral 100, which would mislead — so callers pass
@@ -18,10 +20,10 @@ const DIMENSIONS: Array<{ key: keyof SubScores; label: string }> = [
 ];
 
 function barColor(score: number): string {
-  if (score >= 80) return 'bg-emerald-400';
-  if (score >= 60) return 'bg-brand-500';
-  if (score >= 40) return 'bg-amber-400';
-  return 'bg-slate-400';
+  if (score >= 80) return 'bg-brand-700';
+  if (score >= 60) return 'bg-brand-600';
+  if (score >= 40) return 'bg-brand-300';
+  return 'bg-slate-300';
 }
 
 export default function ScoreBreakdown({

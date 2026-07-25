@@ -92,7 +92,7 @@ export default function WelcomeModal() {
         </button>
 
         <p className="text-xs font-medium uppercase tracking-wide text-brand-700">Heads up</p>
-        <h2 id="welcome-title" className="mt-1 font-serif text-2xl text-slate-900">
+        <h2 id="welcome-title" className="mt-1 text-2xl text-slate-900">
           Nester is a work in progress
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
@@ -115,7 +115,7 @@ export default function WelcomeModal() {
         <button
           type="button"
           onClick={dismiss}
-          className="mt-5 w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          className="btn-outline mt-5 w-full rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         >
           Got it — let me look around
         </button>

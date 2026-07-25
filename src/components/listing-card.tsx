@@ -127,7 +127,7 @@ export default function ListingCard({
           {dealScore && (
             <span
               className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                belowMedian ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                belowMedian ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-100 text-slate-600'
               }`}
               title={dealScore.label}
             >
@@ -186,7 +186,7 @@ export default function ListingCard({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
+            className="btn-outline ml-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm"
           >
             View listing
             <ExternalIcon />

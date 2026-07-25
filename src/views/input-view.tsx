@@ -4,6 +4,7 @@ import { useSearch, DEFAULT_CRITERIA } from '../context/search-context';
 import { useUserData } from '../context/user-data-context';
 import AddressAutocomplete from '../components/address-autocomplete';
 import ApartmentCarousel from '../components/apartment-carousel';
+import WizardSteps from '../components/wizard-steps';
 import type { SearchCriteria, CommuteMode, Weights } from '../lib/types';
 import type { SavedSearch } from '../lib/user-data/types';
 
@@ -19,6 +20,8 @@ const COMMUTE_MODES: Array<{ value: CommuteMode; label: string; icon: string }> 
   { value: 'bike', label: 'Bike', icon: '🚲' },
   { value: 'drive', label: 'Drive', icon: '🚗' },
 ];
+/** The wizard's four pages, in order. Index + 1 is the step number. */
+const STEP_LABELS = ['Location', 'Budget & space', 'Priorities', 'Review'];
 const PRIORITIES: Array<{ key: keyof Weights; label: string; hint: string }> = [
   { key: 'commute', label: 'Short commute', hint: 'Closer to work' },
   { key: 'price', label: 'Low price', hint: 'More under budget' },
@@ -37,6 +40,8 @@ export default function InputView() {
   const { getPreferences, savedAddresses, saveAddress, savedSearches, deleteSearch } =
     useUserData();
   const [form, setForm] = useState<SearchCriteria>(criteria || DEFAULT_CRITERIA);
+  // Which page of the wizard is showing (1-based, to match the rail's numbers).
+  const [step, setStep] = useState(1);
   // Brief inline feedback after saving the typed work address for reuse.
   const [addrSaved, setAddrSaved] = useState(false);
   // Which saved search was just applied, for a brief "Applied ✓" confirmation.
@@ -90,71 +95,114 @@ export default function InputView() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Enter inside a text field submits the form natively. Mid-wizard that would
+    // fire the search before the user has answered everything, so treat it as
+    // "Continue" and only let the last step actually run the search.
+    if (step < STEP_LABELS.length) {
+      setStep((s) => s + 1);
+      return;
+    }
     search(form);
     navigate('/results');
   };
 
   // Apply a saved search's parameters into the form (does NOT run it) so the user
-  // can review/tweak and then hit "Show me matches" themselves.
+  // can review/tweak and then hit "See my matches" themselves. Every field is
+  // already filled, so it lands on Review rather than walking step 1 again.
   const applySaved = (id: string, c: SearchCriteria) => {
     setForm(c);
+    setStep(STEP_LABELS.length);
     setAppliedId(id);
     setTimeout(() => setAppliedId((cur) => (cur === id ? null : cur)), 2000);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('wizard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
     <div className="space-y-12 sm:space-y-16">
-      {/* ---- Hero ---- */}
-      <section className="animate-fadeup overflow-hidden rounded-3xl bg-paper-cream shadow-soft-lg">
-        <div className="grid items-stretch sm:grid-cols-2">
-          <div className="order-2 flex flex-col justify-center px-7 py-9 sm:order-1 sm:px-10 sm:py-14">
-            <span
-              className="animate-fadeup text-xs font-semibold uppercase tracking-[0.22em] text-brand-700"
-              style={{ animationDelay: '60ms' }}
-            >
-              Apartment finding, made human
-            </span>
-            <h1
-              className="mt-4 animate-fadeup font-serif text-5xl leading-[1.02] tracking-tight text-slate-900 sm:text-6xl"
-              style={{ animationDelay: '140ms' }}
-            >
-              Find a place that{' '}
-              <span className="relative inline-block">
-                fits
-                <span className="absolute inset-x-0 -bottom-0.5 h-[3px] rounded-full bg-terracotta-600" />
-              </span>{' '}
-              your life
-            </h1>
-            <p
-              className="mt-4 max-w-md animate-fadeup text-base leading-relaxed text-slate-600"
-              style={{ animationDelay: '220ms' }}
-            >
-              Tell us a little about your days — your commute, your budget, the space you need — and
-              we'll gently rank homes by how well they fit. No endless scrolling.
-            </p>
-            <dl
-              className="mt-6 flex animate-fadeup gap-6 border-t border-ink-600/60 pt-5"
-              style={{ animationDelay: '300ms' }}
-            >
-              {[
-                { v: '4', l: 'priorities weighed' },
-                { v: '7', l: 'cities to start' },
-                { v: '30s', l: 'to your matches' },
-              ].map((s) => (
-                <div key={s.l}>
-                  <dt className="data text-2xl font-semibold text-slate-900">{s.v}</dt>
-                  <dd className="mt-0.5 text-[11px] uppercase tracking-wide text-slate-400">{s.l}</dd>
-                </div>
-              ))}
-            </dl>
+      {/* ---- Hero ----
+           Nocturne is left-aligned and asymmetric: the copy hugs the left edge
+           and the photograph carries the right, with no panel drawn around the
+           pair. The one accent flourish is the hand-drawn underline stroke. */}
+      <section className="grid items-center gap-10 sm:grid-cols-[1.05fr_0.95fr] sm:gap-14">
+        <div>
+          <div
+            className="animate-fadeup mb-4 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-700"
+            style={{ animationDelay: '60ms' }}
+          >
+            <span className="h-[1.5px] w-[22px] bg-brand-600" />
+            Apartment finding, made human
           </div>
-          <div className="order-1 min-h-[220px] sm:order-2 sm:min-h-[380px]">
+          <h1
+            className="animate-fadeup text-5xl leading-[0.98] tracking-[-0.035em] text-slate-900 sm:text-[68px]"
+            style={{ animationDelay: '140ms' }}
+          >
+            Find a place
+            <br />
+            that fits
+            <br />
+            <span className="relative inline-block">
+              your life
+              <svg
+                viewBox="0 0 280 14"
+                preserveAspectRatio="none"
+                className="absolute -bottom-2.5 left-0 h-3.5 w-full"
+              >
+                <path
+                  d="M2 9 C 80 2, 200 12, 278 5"
+                  stroke="#9184d9"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+              </svg>
+            </span>
+          </h1>
+          <p
+            className="mt-7 max-w-md animate-fadeup text-lg leading-relaxed text-slate-600"
+            style={{ animationDelay: '220ms' }}
+          >
+            Tell us a little about your days — your commute, your budget, the space you need — and
+            we'll gently rank homes by how well they fit. No endless scrolling.
+          </p>
+          <div className="hr my-8" />
+          <dl className="flex animate-fadeup gap-12" style={{ animationDelay: '300ms' }}>
+            {[
+              { v: '4', l: 'Priorities weighed' },
+              { v: '7', l: 'Cities to start' },
+              { v: '30s', l: 'To your matches' },
+            ].map((s) => (
+              <div key={s.l}>
+                <dt className="data text-[34px] tracking-[-0.02em] text-slate-900">{s.v}</dt>
+                <dd className="mt-1 max-w-[110px] text-[11px] uppercase leading-tight tracking-[0.06em] text-slate-400">
+                  {s.l}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
+        <div className="relative">
+          <div className="overflow-hidden rounded-2xl shadow-soft-lg" style={{ aspectRatio: '6 / 5' }}>
             <img
               src={HERO_IMAGE}
               alt="A warm, sunlit apartment interior"
-              className="h-full w-full object-cover"
+              className="lighten h-full w-full object-cover"
             />
+          </div>
+          {/* Detached overlay card — the design's proof that the ranking is live. */}
+          <div className="card animate-float absolute -bottom-6 -left-4 w-[230px] p-4 shadow-soft-lg sm:-left-7">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-[0.1em] text-brand-600">
+                Live fit score
+              </span>
+              <span className="rounded-md bg-brand-100 px-2.5 py-0.5 text-[11px] text-brand-700">
+                94%
+              </span>
+            </div>
+            <div className="mt-1.5 text-[15px] text-slate-900">1200 Fillmore St, Unit 4</div>
+            <div className="mt-1 text-[11px] text-slate-400">
+              18 min commute · Fits 3 of 4 priorities
+            </div>
           </div>
         </div>
       </section>
@@ -165,7 +213,7 @@ export default function InputView() {
       {savedSearches.length > 0 && (
         <section className="animate-fadeup" style={{ animationDelay: '40ms' }}>
           <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="font-serif text-2xl font-semibold tracking-tight text-slate-900">
+            <h2 className="text-2xl tracking-tight text-slate-900">
               Your saved searches
             </h2>
             <span className="hidden text-xs text-slate-400 sm:block">
@@ -186,9 +234,19 @@ export default function InputView() {
         </section>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-6 sm:space-y-8">
-        {/* ---- 1 · Where ---- */}
-        <GroupCard step={1} title="Where are you looking?" delay={60}>
+      {/* ---- The guided wizard ----
+           One question at a time, on a single card, with the rail above it
+           carrying progress. Steps are all mounted-on-demand, so the browser
+           never has to reconcile four screens of fields at once. */}
+      <form id="wizard" onSubmit={onSubmit} className="card p-6 sm:p-10">
+        <WizardSteps labels={STEP_LABELS} current={step} onJump={setStep} />
+
+        {step === 1 && (
+        <StepPanel
+          key={step}
+          title="Where are you looking?"
+          subtitle="Pick a city to start — you can compare neighbourhoods later."
+        >
           <Field label="City">
             <div className="relative">
               <select
@@ -263,10 +321,15 @@ export default function InputView() {
               })()}
             </Field>
           )}
-        </GroupCard>
+        </StepPanel>
+        )}
 
-        {/* ---- 2 · Budget & space ---- */}
-        <GroupCard step={2} title="Your budget & space" delay={120}>
+        {step === 2 && (
+        <StepPanel
+          key={step}
+          title="Your budget & space"
+          subtitle="We'll rank listings by how well they hold both."
+        >
           <Field
             label={
               <span>
@@ -313,6 +376,17 @@ export default function InputView() {
             </div>
           </Field>
 
+        </StepPanel>
+        )}
+
+        {step === 3 && (
+        <StepPanel
+          key={step}
+          title="What matters most to you?"
+          subtitle="Slide up the things you care about — we'll weigh them into every match."
+        >
+          {/* Remote searches have no commute to plan, so the mode picker only
+              appears when there's a journey to make. */}
           {form.inPerson && (
             <Field label="How do you like to get around?">
               <div className="grid grid-cols-4 gap-2.5">
@@ -332,15 +406,7 @@ export default function InputView() {
               </div>
             </Field>
           )}
-        </GroupCard>
 
-        {/* ---- 3 · Priorities ---- */}
-        <GroupCard
-          step={3}
-          title="What matters most to you?"
-          subtitle="Slide up the things you care about — we'll weigh them into every match."
-          delay={180}
-        >
           <div className="space-y-6">
             {PRIORITIES.map((p) => {
               // Remote workers don't have a commute to weigh.
@@ -356,24 +422,93 @@ export default function InputView() {
               );
             })}
           </div>
-        </GroupCard>
+        </StepPanel>
+        )}
 
-        {/* ---- CTA ---- */}
-        <div className="animate-fadeup pt-1" style={{ animationDelay: '240ms' }}>
-          <button
-            type="submit"
-            className="w-full rounded-2xl bg-brand-600 px-4 py-4 text-base font-semibold text-white shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-soft-lg active:translate-y-0"
+        {step === 4 && (
+        <StepPanel
+          key={step}
+          title="Ready to match"
+          subtitle={`We'll rank ${form.city} listings against your priorities in about 30 seconds.`}
+        >
+          {/* The one accent-tinted surface in the flow — it marks the end of the
+              wizard without the accent flooding anything. */}
+          <div
+            className="max-w-lg rounded-xl border border-brand-200 p-5"
+            style={{ background: 'color-mix(in srgb, #9184d9 8%, #232532)' }}
           >
-            Show me matches
+            <div className="text-base text-slate-900">Summary</div>
+            <dl className="mt-2.5 space-y-1.5 text-[13px] leading-relaxed text-slate-600">
+              <SummaryRow label="City" value={form.city} />
+              <SummaryRow
+                label="Bedrooms"
+                value={form.bedrooms === 0 ? 'Studio' : `${form.bedrooms} bedroom${form.bedrooms > 1 ? 's' : ''}`}
+              />
+              <SummaryRow label="Max rent" value={`$${form.maxRent.toLocaleString()} / month`} />
+              {form.monthlyIncome ? (
+                <SummaryRow
+                  label="Take-home"
+                  value={`$${form.monthlyIncome.toLocaleString()} / month`}
+                />
+              ) : null}
+              <SummaryRow
+                label="Commute"
+                value={
+                  form.inPerson
+                    ? `${commuteLabel(form.commuteMode)}${
+                        form.workAddress ? ` from ${form.workAddress}` : ''
+                      }`
+                    : 'Remote — no commute weighed'
+                }
+              />
+              <SummaryRow
+                label="Priorities weighed"
+                value={(({ active, total }) => `${active} of ${total}`)(activePriorities(form))}
+              />
+            </dl>
+          </div>
+          <p className="text-xs text-slate-400">Takes about 30 seconds ✦ No account needed</p>
+        </StepPanel>
+        )}
+
+        {/* ---- Wizard controls ---- */}
+        <div className="mt-8 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setStep((s) => Math.max(1, s - 1))}
+            disabled={step === 1}
+            className="rounded-lg border border-ink-600 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            ← Back
           </button>
-          <p className="mt-3 text-center text-xs text-slate-400">Takes about 30 seconds ✦ No account needed</p>
+          {/* The keys matter. Without them React reconciles these two into the
+              same DOM node and only flips `type`, so the final Continue click
+              lands on a button that has already become type="submit" by the time
+              the browser runs its default action — advancing to Review and
+              immediately submitting from it. Distinct keys force a fresh node. */}
+          {step === STEP_LABELS.length ? (
+            /* Nocturne outlines its primary action rather than flooding it with
+               accent — the fill is reserved for the brand mark. */
+            <button key="submit" type="submit" className="btn-outline px-7 py-2.5 text-[15px]">
+              See my matches →
+            </button>
+          ) : (
+            <button
+              key="continue"
+              type="button"
+              onClick={() => setStep((s) => Math.min(STEP_LABELS.length, s + 1))}
+              className="btn-outline px-7 py-2.5 text-[15px]"
+            >
+              Continue →
+            </button>
+          )}
         </div>
       </form>
 
       {/* ---- Featured spaces ---- */}
       <section className="animate-fadeup" style={{ animationDelay: '300ms' }}>
         <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="font-serif text-2xl font-semibold tracking-tight text-slate-900">Featured spaces</h2>
+          <h2 className="text-2xl tracking-tight text-slate-900">Featured spaces</h2>
           <span className="hidden text-xs text-slate-400 sm:block">A look at places people love</span>
         </div>
         <ApartmentCarousel />
@@ -461,7 +596,7 @@ function SavedSearchCard({
                 onApply();
                 setConfirming(false);
               }}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700"
+              className="btn-outline rounded-lg px-3 py-1.5 text-xs"
             >
               Apply
             </button>
@@ -487,34 +622,54 @@ function SavedSearchCard({
   );
 }
 
-/** A soft labeled group in the guided form — numbered step, title, breathing room. */
-function GroupCard({
-  step,
+/**
+ * One page of the wizard. The rail above already carries the step number, so
+ * the panel is just a heading, a line of orientation, and the fields — keyed on
+ * the step so React remounts it and the fade replays on every advance.
+ */
+function StepPanel({
   title,
   subtitle,
-  delay = 0,
   children,
 }: {
-  step: number;
   title: string;
   subtitle?: string;
-  delay?: number;
   children: ReactNode;
 }) {
   return (
-    <section className="card animate-fadeup p-6 sm:p-8" style={{ animationDelay: `${delay}ms` }}>
-      <div className="mb-6 flex items-center gap-3">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sage font-serif text-sm font-semibold text-brand-700">
-          {step}
-        </span>
-        <div>
-          <h2 className="font-serif text-xl font-semibold leading-tight tracking-tight text-slate-900">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
-        </div>
-      </div>
-      <div className="space-y-5">{children}</div>
+    <section className="motion-safe:animate-fadeup">
+      <h2 className="text-[25px] leading-tight tracking-tight text-slate-900">{title}</h2>
+      {subtitle && <p className="mt-1.5 text-sm text-slate-500">{subtitle}</p>}
+      <div className="mt-7 max-w-2xl space-y-5">{children}</div>
     </section>
   );
+}
+
+/** One label/value line in the review step's summary. */
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="flex-none text-slate-400">{label}:</dt>
+      <dd className="min-w-0 text-slate-700">{value}</dd>
+    </div>
+  );
+}
+
+function commuteLabel(mode: CommuteMode): string {
+  return COMMUTE_MODES.find((m) => m.value === mode)?.label ?? mode;
+}
+
+/**
+ * How many priorities the user actually leaned on (anything above indifferent),
+ * over how many were on offer — remote searches never see the commute slider,
+ * so counting it against them would overstate the denominator.
+ */
+function activePriorities(form: SearchCriteria): { active: number; total: number } {
+  const offered = PRIORITIES.filter((p) => p.key !== 'commute' || form.inPerson);
+  return {
+    active: offered.filter((p) => form.weights[p.key] > 0.5).length,
+    total: offered.length,
+  };
 }
 
 function Field({ label, hint, children }: { label: ReactNode; hint?: string; children: ReactNode }) {

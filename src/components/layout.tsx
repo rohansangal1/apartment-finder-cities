@@ -43,6 +43,8 @@ interface NavItem {
   desktopOnly?: boolean;
   /** Show only on the mobile bottom bar (the grouped "Connect" tab). */
   mobileOnly?: boolean;
+  /** Built, but with no inventory behind it yet — flagged in the desktop nav. */
+  soon?: boolean;
 }
 
 // Roommates + Agents get their own desktop links, but fold behind one "Connect"
@@ -51,40 +53,66 @@ const NAV: NavItem[] = [
   { to: '/', label: 'Search', icon: SearchIcon, end: true },
   { to: '/results', label: 'Results', icon: ListIcon },
   { to: '/saved', label: 'Saved', icon: HeartIcon },
-  { to: '/roommates', label: 'Roommates', icon: PeopleIcon, desktopOnly: true },
-  { to: '/agents', label: 'Agents', icon: BadgeIcon, desktopOnly: true },
+  { to: '/roommates', label: 'Roommates', icon: PeopleIcon, desktopOnly: true, soon: true },
+  { to: '/agents', label: 'Agents', icon: BadgeIcon, desktopOnly: true, soon: true },
   { to: '/connect', label: 'Connect', icon: PeopleIcon, mobileOnly: true },
   { to: '/account', label: 'Account', icon: UserIcon },
 ];
 
 const DESKTOP_NAV = NAV.filter((i) => !i.mobileOnly);
 const MOBILE_NAV = NAV.filter((i) => !i.desktopOnly);
+// Account is the one nav item that reads as an action, so it leaves the link
+// row and becomes the outlined button on the right.
+const DESKTOP_LINKS = DESKTOP_NAV.filter((i) => i.to !== '/account');
 
 function TopBar({ maxW }: { maxW: string }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-ink-600/70 bg-ink-950/80 backdrop-blur">
-      <div className={`mx-auto flex w-full items-center justify-between px-4 py-3 sm:px-6 ${maxW}`}>
+    <header className="sticky top-0 z-20 border-b border-ink-600 bg-ink-950/[0.88] backdrop-blur-[10px]">
+      <div className={`mx-auto flex w-full items-center justify-between px-4 py-3.5 sm:px-6 ${maxW}`}>
         <Link to="/" className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-600 text-white shadow-soft">
+          {/* The mark is the one place the accent is allowed to fill: a small
+              gradient tile with a glow, glyph knocked out in the ground colour. */}
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-200 text-ink-950"
+            style={{
+              boxShadow:
+                '0 0 0 1px color-mix(in srgb, #9184d9 40%, transparent), 0 4px 16px color-mix(in srgb, #9184d9 35%, transparent)',
+            }}
+          >
             <HomeGlyph />
           </span>
-          <span className="font-serif text-xl font-semibold tracking-tight text-brand-700">Nester</span>
+          <span className="text-xl font-medium tracking-[-0.02em] text-slate-900">Nester</span>
         </Link>
-        <nav className="hidden items-center gap-1 sm:flex">
-          {DESKTOP_NAV.map((item) => (
+        <nav className="hidden items-center gap-7 sm:flex">
+          {DESKTOP_LINKS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                  isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100'
+                `nav-link text-sm transition-colors ${
+                  isActive ? 'text-brand-700' : 'text-slate-700 hover:text-brand-700'
                 }`
               }
             >
               {item.label}
+              {/* Sets expectation before the click, so the Coming Soon banner on
+                  the other side is a confirmation rather than a surprise. */}
+              {item.soon && (
+                <span className="ml-1.5 align-middle text-[9px] uppercase tracking-[0.1em] text-slate-400">
+                  Soon
+                </span>
+              )}
             </NavLink>
           ))}
+          <NavLink
+            to="/account"
+            className={({ isActive }) =>
+              `btn-outline ${isActive ? 'bg-brand-600/[0.14]' : ''}`
+            }
+          >
+            Account
+          </NavLink>
         </nav>
       </div>
     </header>
@@ -119,7 +147,11 @@ function MobileTabBar() {
 
 function Footer() {
   return (
-    <footer className="border-t border-ink-600/70 px-4 py-8 text-center text-xs text-slate-400">
+    <footer className="border-t border-ink-600 px-4 py-6 text-center text-[12.5px] text-slate-400">
+      <Link to="/how-it-works" className="text-slate-500 underline-offset-4 hover:text-brand-700 hover:underline">
+        How matching works
+      </Link>
+      <span className="mx-2.5 text-ink-600">·</span>
       Nester helps you find a place that fits your life — we link out to each source, we don't
       host listings or handle transactions.
       {DATA_SOURCE === 'mock' && (
@@ -134,10 +166,9 @@ function Footer() {
 // ---- icons ----
 function HomeGlyph() {
   return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9.5 12 3l9 6.5" />
-      <path d="M5 9v11h14V9" />
-      <path d="M9 20v-6h6v6" />
+    <svg className="h-[19px] w-[19px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11.5 12 4l9 7.5" />
+      <path d="M5.5 10v9a1 1 0 0 0 1 1H17.5a1 1 0 0 0 1-1v-9" />
     </svg>
   );
 }

@@ -59,13 +59,13 @@ function StarIcon({
         <defs>
           <linearGradient id={id}>
             <stop offset="50%" stopColor="#f59e0b" />
-            <stop offset="50%" stopColor="#e2e8f0" />
+            <stop offset="50%" stopColor="#3f424d" />
           </linearGradient>
         </defs>
       )}
       <path
         d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.7l5.9-.9L10 1.5z"
-        fill={half ? `url(#${id})` : filled ? '#f59e0b' : '#e2e8f0'}
+        fill={half ? `url(#${id})` : filled ? '#f59e0b' : '#3f424d'}
       />
     </svg>
   );

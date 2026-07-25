@@ -123,7 +123,7 @@ export default function DetailView() {
         ← Back to results
       </Link>
 
-      <div className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+      <div className="card p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-slate-900">{listing.neighborhood}</h1>
@@ -156,7 +156,7 @@ export default function DetailView() {
 
         {dealScoreLabel && (
           <p className="mt-3 flex items-center gap-1.5 text-sm text-slate-600">
-            <span className="inline-flex rounded-lg bg-emerald-50 px-3 py-1.5 font-medium text-emerald-700">
+            <span className="inline-flex rounded-lg bg-emerald-500/15 px-3 py-1.5 font-medium text-emerald-300">
               Deal Score: {dealScoreLabel}
             </span>
           </p>
@@ -183,7 +183,7 @@ export default function DetailView() {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 text-base font-semibold text-white transition hover:bg-brand-700"
+          className="btn-outline mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-base"
         >
           View listing on {sourceLabel(listing.source)}
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -203,7 +203,7 @@ export default function DetailView() {
 
       {/* Match-score breakdown */}
       {matchScore != null && (
-        <section className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+        <section className="card p-5">
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
             Why this scored {matchScore}
           </h2>
@@ -211,7 +211,11 @@ export default function DetailView() {
             <ScoreBreakdown subScores={subScores} commuteApplies={criteria.inPerson} />
           </div>
           <p className="mt-3 text-xs text-slate-400">
-            Each dimension is scored 0–100, then combined by the priority weights from your search.
+            Each dimension is scored 0–100, then combined by the priority weights from your search.{' '}
+            <Link to="/how-it-works" className="text-brand-700 underline-offset-4 hover:underline">
+              See the full breakdown
+            </Link>
+            .
           </p>
         </section>
       )}
@@ -225,7 +229,7 @@ export default function DetailView() {
       />
 
       {/* Commute breakdown */}
-      <section className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+      <section className="card p-5">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Commute to work</h2>
         {!criteria.inPerson ? (
           <p className="mt-2 text-sm text-slate-500">
@@ -261,7 +265,7 @@ export default function DetailView() {
       </section>
 
       {/* Reviews */}
-      <section className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+      <section className="card p-5">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Resident reviews</h2>
         {reviews == null ? (
           <div className="mt-3 h-16 animate-pulse rounded-lg bg-slate-100" />
@@ -276,7 +280,7 @@ export default function DetailView() {
                 <div className="flex items-center gap-2">
                   <Rating value={r.stars} source={null} />
                   {r.livedHereVerified && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
                       ✓ Verified resident
                     </span>
                   )}

@@ -24,7 +24,7 @@ export default function AgentCard({
   };
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+    <div className="flex flex-col card p-5">
       <div className="flex items-start gap-4">
         {agent.photoUrl ? (
           <img
@@ -42,7 +42,7 @@ export default function AgentCard({
             {agent.verified && (
               <span
                 title="Verified agent"
-                className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700"
+                className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-300"
               >
                 ✓ Verified
               </span>
@@ -72,7 +72,7 @@ export default function AgentCard({
         {revealed && agent.contactEmail ? (
           <a
             href={`mailto:${agent.contactEmail}`}
-            className="block w-full rounded-xl bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-brand-700"
+            className="btn-outline w-full rounded-xl px-4 py-2.5 text-sm"
           >
             {agent.contactEmail}
           </a>
@@ -80,7 +80,7 @@ export default function AgentCard({
           <button
             type="button"
             onClick={contact}
-            className="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            className="btn-outline w-full rounded-xl px-4 py-2.5 text-sm"
           >
             {agent.bookingUrl ? 'Contact / Book' : 'Show contact'}
           </button>

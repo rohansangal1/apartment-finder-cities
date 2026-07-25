@@ -15,10 +15,10 @@ import { formatRent, formatBeds } from '../lib/format';
 /** Pin fill by match strength — mirrors MatchScore's thresholds (hex, since the
  * marker is rendered by Leaflet outside Tailwind's class context). */
 function pinColor(score: number): string {
-  if (score >= 80) return '#34d399'; // emerald
-  if (score >= 60) return '#4C8B67'; // brand green
-  if (score >= 40) return '#fbbf24'; // amber
-  return '#8B857D'; // slate
+  if (score >= 80) return '#b5abfc'; // accent, brightest step
+  if (score >= 60) return '#9184d9'; // accent base
+  if (score >= 40) return '#796cbf'; // accent, dimmed
+  return '#75798c'; // neutral
 }
 
 function scoreIcon(score: number, selected: boolean) {
@@ -30,7 +30,7 @@ function scoreIcon(score: number, selected: boolean) {
   const font = selected ? 14 : 12;
   return divIcon({
     className: '',
-    html: `<div style="background:${bg};${ring}color:#0B0B0C;width:${size}px;height:${size}px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${font}px;font-family:ui-monospace,monospace;border:2px solid #0B0B0C;transition:width .12s,height .12s;">${score}</div>`,
+    html: `<div style="background:${bg};${ring}color:#161826;width:${size}px;height:${size}px;border-radius:9999px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${font}px;font-family:ui-monospace,monospace;border:2px solid #0B0B0C;transition:width .12s,height .12s;">${score}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2 - 1],
@@ -90,7 +90,7 @@ export default function ResultsMap({
         center={points[0]}
         zoom={12}
         scrollWheelZoom
-        style={{ height: '100%', width: '100%', background: '#0B0B0C' }}
+        style={{ height: '100%', width: '100%', background: '#161826' }}
       >
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"

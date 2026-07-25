@@ -86,7 +86,7 @@ export default function AuthForm() {
   const inputClass = 'input disabled:opacity-60';
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-ink p-6 shadow-sm">
+    <div className="card p-6">
       {/* Mode toggle — matches the app's segmented control (results view). */}
       <div className="mx-auto mb-5 flex max-w-xs overflow-hidden rounded-lg border border-slate-200 text-sm font-semibold">
         {(['signin', 'signup'] as Mode[]).map((m) => (
@@ -101,7 +101,7 @@ export default function AuthForm() {
             }}
             className={`flex-1 px-3 py-2 transition ${
               mode === m
-                ? 'bg-brand-600 text-white'
+                ? 'text-brand-600 shadow-[inset_0_0_0_1px_#9184d9]'
                 : 'bg-ink text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -111,7 +111,7 @@ export default function AuthForm() {
       </div>
 
       {!enabled && (
-        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-center text-xs text-amber-700">
+        <p className="mb-4 rounded-lg bg-amber-500/15 px-3 py-2 text-center text-xs text-amber-300">
           Auth isn’t configured in this environment. Add VITE_SUPABASE_URL and
           VITE_SUPABASE_ANON_KEY to enable accounts.
         </p>
@@ -175,7 +175,7 @@ export default function AuthForm() {
         <button
           type="submit"
           disabled={disabled}
-          className="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+          className="btn-outline w-full rounded-xl px-4 py-2.5 text-sm disabled:opacity-60"
         >
           {busy
             ? 'Working…'

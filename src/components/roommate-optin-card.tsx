@@ -50,10 +50,10 @@ export default function RoommateOptInCard() {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+    <div className="card p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="font-serif text-lg font-semibold text-slate-900">Roommate matching</h3>
+          <h3 className="text-lg text-slate-900">Roommate matching</h3>
           <p className="mt-1 text-sm text-slate-500">
             Find people hunting for the same kind of place. Off until you turn it on.
           </p>
@@ -135,7 +135,7 @@ export default function RoommateOptInCard() {
             type="button"
             onClick={() => void persist(profile)}
             disabled={saveState === 'saving'}
-            className="w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+            className="btn-outline w-full rounded-xl px-4 py-2.5 text-sm disabled:opacity-60"
           >
             {saveState === 'saved' ? '✓ Profile saved' : saveState === 'saving' ? 'Saving…' : 'Save profile'}
           </button>

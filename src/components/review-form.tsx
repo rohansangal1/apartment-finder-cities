@@ -59,7 +59,7 @@ export default function ReviewForm({
             aria-label={`${n} star${n > 1 ? 's' : ''}`}
             className="p-0.5"
           >
-            <svg className="h-6 w-6" viewBox="0 0 20 20" fill={n <= stars ? '#f59e0b' : '#e2e8f0'}>
+            <svg className="h-6 w-6" viewBox="0 0 20 20" fill={n <= stars ? '#f59e0b' : '#3f424d'}>
               <path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L10 15l-5.2 2.7 1-5.8L1.5 7.7l5.9-.9L10 1.5z" />
             </svg>
           </button>
@@ -93,7 +93,7 @@ export default function ReviewForm({
       <button
         type="submit"
         disabled={submitting}
-        className="mt-3 w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+        className="btn-outline mt-3 w-full rounded-lg px-4 py-2 text-sm disabled:opacity-60"
       >
         {submitting ? 'Posting…' : 'Post review'}
       </button>

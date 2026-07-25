@@ -38,7 +38,7 @@ export default function FeedbackWidget() {
           aria-haspopup="dialog"
           aria-expanded={false}
           // Above the z-20 mobile tab bar on phones, clear of everything on desktop.
-          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-soft-lg transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 sm:bottom-6 sm:right-6"
+          className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-ink-950 shadow-soft-lg transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 sm:bottom-6 sm:right-6"
         >
           <ChatIcon className="h-4 w-4" />
           Contact me
@@ -134,14 +134,14 @@ function FeedbackPanel({ onClose }: { onClose: () => void }) {
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-50 text-brand-700">
               <CheckIcon className="h-6 w-6" />
             </span>
-            <h2 id="feedback-title" className="mt-3 font-serif text-xl text-slate-900">
+            <h2 id="feedback-title" className="mt-3 text-xl text-slate-900">
               Thanks — got it
             </h2>
             <p className="mt-1 text-sm text-slate-500">I read every one of these.</p>
           </div>
         ) : (
           <form onSubmit={submit}>
-            <h2 id="feedback-title" className="pr-8 font-serif text-xl text-slate-900">
+            <h2 id="feedback-title" className="pr-8 text-xl text-slate-900">
               Say hi
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-slate-500">
@@ -187,7 +187,7 @@ function FeedbackPanel({ onClose }: { onClose: () => void }) {
             <button
               type="submit"
               disabled={submitting}
-              className="mt-3 w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-60"
+              className="btn-outline mt-3 w-full rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-60"
             >
               {submitting ? 'Sending…' : 'Send'}
             </button>

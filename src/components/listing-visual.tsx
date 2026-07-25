@@ -27,12 +27,12 @@ function hash(str: string): number {
 /** Accent hue for the generated fallback: score band when known, else hashed. */
 function accentFor(id: string, score?: number): string {
   if (score != null) {
-    if (score >= 80) return '#34d399'; // emerald
-    if (score >= 60) return '#4C8B67'; // brand green
-    if (score >= 40) return '#fbbf24'; // amber
-    return '#8B857D'; // muted
+    if (score >= 80) return '#b5abfc'; // accent, brightest step
+    if (score >= 60) return '#9184d9'; // accent base
+    if (score >= 40) return '#796cbf'; // accent, dimmed
+    return '#75798c'; // neutral
   }
-  const palette = ['#4C8B67', '#D98A64', '#8B857D']; // brand / terracotta / muted
+  const palette = ['#9184d9', '#a7a1db', '#75798c']; // accent / accent-2 / neutral
   return palette[hash(id) % palette.length];
 }
 
@@ -88,7 +88,7 @@ function fallbackSvg(id: string, score?: number): string {
       <stop offset='1' stop-color='${accent}' stop-opacity='0'/>
     </linearGradient>
   </defs>
-  <rect width='400' height='220' fill='#141210'/>
+  <rect width='400' height='220' fill='#232532'/>
   <rect width='400' height='220' fill='url(#g)'/>
   ${roofs}
 </svg>`;

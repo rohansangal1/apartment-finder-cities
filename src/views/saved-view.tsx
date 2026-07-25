@@ -16,6 +16,7 @@ import { resolveListingUrl, STALE_AFTER_DAYS } from '../lib/listing-links';
 import ListingLinks from '../components/listing-links';
 import AiNotesButton from '../components/ai-notes-button';
 import DocumentSection from '../components/document-section';
+import EmptyMark, { HeartGlyph } from '../components/empty-mark';
 
 /**
  * Saved apartments. Renders directly from the snapshots stored at save time
@@ -67,7 +68,7 @@ export default function SavedView() {
                 onClick={() => setView(v)}
                 aria-pressed={view === v}
                 className={`px-3 py-1.5 text-sm font-medium capitalize transition ${
-                  view === v ? 'bg-brand-600 text-white' : 'bg-ink text-slate-600 hover:text-slate-900'
+                  view === v ? 'text-brand-600 shadow-[inset_0_0_0_1px_#9184d9]' : 'bg-ink text-slate-600 hover:text-slate-900'
                 }`}
               >
                 {v}
@@ -85,16 +86,15 @@ export default function SavedView() {
         </Suspense>
       ) : savedListings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <span className="text-4xl">🤍</span>
-          <h2 className="mt-3 text-lg font-semibold text-slate-800">Nothing saved yet</h2>
-          <p className="mt-1 max-w-xs text-sm text-slate-500">
+          <EmptyMark size={110}>
+            <HeartGlyph />
+          </EmptyMark>
+          <h2 className="mt-8 text-xl text-slate-900">Nothing saved yet</h2>
+          <p className="mt-2.5 max-w-xs text-sm text-slate-500">
             Tap the heart on any listing to add it here.
           </p>
-          <Link
-            to="/results"
-            className="mt-5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
-          >
-            Browse results
+          <Link to="/results" className="btn-outline mt-6 px-6 py-3 text-[15px]">
+            Browse results →
           </Link>
         </div>
       ) : (
@@ -110,7 +110,7 @@ export default function SavedView() {
             return (
               <li
                 key={l.id}
-                className="rounded-2xl border border-slate-200 bg-ink p-4 shadow-sm"
+                className="card p-4"
               >
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
@@ -142,7 +142,7 @@ export default function SavedView() {
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+                      className="btn-outline rounded-lg px-3 py-1.5 text-xs"
                     >
                       View
                     </a>

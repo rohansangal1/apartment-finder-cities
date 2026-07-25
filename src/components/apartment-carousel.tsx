@@ -95,7 +95,7 @@ export default function ApartmentCarousel() {
             aria-label={`Go to slide ${i + 1}`}
             aria-current={i === index}
             className={`h-1.5 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 ${
-              i === index ? 'w-6 bg-brand-700' : 'w-1.5 bg-white/60 hover:bg-white/90'
+              i === index ? 'w-6 bg-brand-700' : 'w-1.5 bg-slate-300 hover:bg-slate-500'
             }`}
           />
         ))}

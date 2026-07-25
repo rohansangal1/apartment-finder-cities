@@ -25,7 +25,7 @@ export default function ConnectView() {
             type="button"
             onClick={() => select(t)}
             className={`rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition ${
-              tab === t ? 'bg-brand-600 text-white shadow-soft' : 'text-slate-500 hover:text-slate-700'
+              tab === t ? 'text-brand-600 shadow-[inset_0_0_0_1px_#9184d9]' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {t}

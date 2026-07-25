@@ -49,7 +49,7 @@ export default function AccountView() {
 
       {/* Signed-in state */}
       {enabled && user ? (
-        <div className="rounded-2xl border border-slate-200 bg-ink p-6 shadow-sm">
+        <div className="card p-6">
           <div className="flex items-center gap-4">
             <Avatar user={user} />
             <div className="min-w-0">
@@ -62,7 +62,7 @@ export default function AccountView() {
             type="button"
             onClick={saveCurrentAsDefaults}
             disabled={saveState === 'saving'}
-            className="mt-5 w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+            className="btn-outline mt-5 w-full rounded-xl px-4 py-2.5 text-sm disabled:opacity-60"
           >
             {saveState === 'saved'
               ? '✓ Saved as your defaults'
@@ -92,29 +92,49 @@ export default function AccountView() {
         </>
       )}
 
-      {!(enabled && user) && (
-        /* Signed-out / guest state — self-service sign-up, sign-in, or Google. */
-        <AuthForm />
+      {/* Signed out, the form and the reasons to use it sit side by side —
+          the asymmetric two-column split the design specifies. Signed in, the
+          form is gone, so the panel falls back to full width. */}
+      {!(enabled && user) ? (
+        <div className="grid items-start gap-7 sm:grid-cols-[1.1fr_0.9fr]">
+          {/* Signed-out / guest state — self-service sign-up, sign-in, or Google. */}
+          <AuthForm />
+          <UnlocksPanel />
+        </div>
+      ) : (
+        <UnlocksPanel />
       )}
+    </div>
+  );
+}
 
-      <div className="rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
-        <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">
-          What signing in unlocks
-        </h3>
-        <ul className="mt-3 space-y-2 text-sm text-slate-600">
-          {[
-            'Saved apartments synced across all your devices',
-            'Default work address, commute mode & priorities pre-filled',
-            'Write verified reviews for places you’ve lived',
-            'Your data stays yours — row-level security per account',
-          ].map((item) => (
-            <li key={item} className="flex items-start gap-2">
-              <span className="mt-0.5 text-brand-500">✓</span>
-              {item}
-            </li>
-          ))}
-        </ul>
-      </div>
+/** The case for an account, as a quiet checklist rather than a sales pitch. */
+function UnlocksPanel() {
+  return (
+    <div className="card p-8">
+      <h3 className="text-[13px] uppercase tracking-[0.08em] text-slate-400">
+        What signing in unlocks
+      </h3>
+      <ul className="mt-5 space-y-4">
+        {[
+          'Saved apartments synced across all your devices',
+          'Default work address, commute mode & priorities pre-filled',
+          'Write verified reviews for places you’ve lived',
+          'Your data stays yours — row-level security per account',
+        ].map((item) => (
+          <li key={item} className="flex items-start gap-3 text-sm leading-relaxed text-slate-700">
+            <span
+              className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full text-brand-600"
+              style={{ background: 'color-mix(in srgb, #9184d9 22%, transparent)' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12.5 9.5 18 20 6" />
+              </svg>
+            </span>
+            {item}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

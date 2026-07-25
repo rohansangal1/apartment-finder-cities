@@ -33,7 +33,7 @@ export default function RoommateCard({
   const tags = [...candidate.sharedCities, ...candidate.sharedNeighborhoods];
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200 bg-ink p-5 shadow-sm">
+    <div className="flex flex-col card p-5">
       <div className="flex items-start gap-4">
         <Avatar name={name} />
         <div className="min-w-0 flex-1">
@@ -74,7 +74,7 @@ export default function RoommateCard({
         type="button"
         onClick={connect}
         disabled={state === 'sending' || state === 'sent'}
-        className="mt-4 w-full rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
+        className="btn-outline mt-4 w-full rounded-xl px-4 py-2.5 text-sm disabled:opacity-60"
       >
         {state === 'sent'
           ? '✓ Request sent'

@@ -9,6 +9,7 @@ import CompareView from './views/compare-view';
 import ConnectView from './views/connect-view';
 import RoommatesView from './views/roommates-view';
 import AgentsView from './views/agents-view';
+import HowItWorksView from './views/how-it-works-view';
 
 /** Route table. Each view is its own screen — never everything on one page. */
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/roommates" element={<RoommatesView />} />
         <Route path="/agents" element={<AgentsView />} />
         <Route path="/account" element={<AccountView />} />
+        <Route path="/how-it-works" element={<HowItWorksView />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

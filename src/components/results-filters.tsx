@@ -94,7 +94,7 @@ export default function ResultsFilters({
           <FilterIcon />
           Refine
           {active > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-600 px-1 text-xs font-semibold text-white">
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-100 px-1 text-xs font-semibold text-brand-700">
               {active}
             </span>
           )}
@@ -201,7 +201,7 @@ function Chip({
       aria-pressed={active}
       className={`rounded-full px-3 py-1 text-sm font-medium transition ${
         active
-          ? 'bg-brand-600 text-white'
+          ? 'text-brand-600 shadow-[inset_0_0_0_1px_#9184d9]'
           : 'bg-ink-700 text-slate-600 hover:text-slate-900'
       }`}
     >

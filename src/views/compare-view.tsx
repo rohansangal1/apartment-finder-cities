@@ -24,14 +24,14 @@ export default function CompareView() {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center motion-safe:animate-fadeup">
         <span className="text-4xl">⚖️</span>
-        <h1 className="mt-3 font-serif text-2xl font-semibold text-slate-900">Nothing to compare yet</h1>
+        <h1 className="mt-3 text-2xl text-slate-900">Nothing to compare yet</h1>
         <p className="mt-1 max-w-xs text-sm text-slate-500">
           Add at least two listings to compare them side by side — use the “Compare” pill on any
           result or saved place.
         </p>
         <Link
           to="/results"
-          className="mt-5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+          className="btn-outline mt-5 rounded-lg px-4 py-2 text-sm"
         >
           Back to results
         </Link>
@@ -56,7 +56,7 @@ export default function CompareView() {
   return (
     <div className="space-y-4">
       <header className="pt-2">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight text-slate-900">Compare</h1>
+        <h1 className="text-2xl tracking-tight text-slate-900">Compare</h1>
         <p className="mt-1 text-sm text-slate-500">
           {entries.length} listings, side by side. Best-in-row values are highlighted.
         </p>

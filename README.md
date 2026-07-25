@@ -64,9 +64,28 @@ That's it — the app boots with mock data and guest-mode storage.
 ```bash
 npm run dev        # Vite dev server at http://localhost:5173
 npm run typecheck  # tsc project-references check (app + api), no emit
+npm test           # Vitest, single run
+npm run test:watch # Vitest in watch mode
 npm run build      # tsc -b && vite build → dist/
 npm run preview    # preview the production build locally
 ```
+
+### Tests
+
+Vitest with jsdom and Testing Library. Test files sit next to what they cover
+(`src/lib/scoring.test.ts`), so they're typechecked by the same `tsc -b` as the
+app and never reach the bundle. Two layers:
+
+- **Unit** — the pure modules (`scoring`, `true-cost`, `affordability`,
+  `format`, `listing-links`, `deal-score`), plus component behaviour for the
+  search wizard, results view, score breakdown and the How It Works page.
+- **Integration** — `search-service.integration.test.ts` runs the whole
+  orchestration through the *real* mock data client with no module stubs, so a
+  renamed client method or a fixture that stops matching a city fails loudly.
+
+`how-it-works-view.test.tsx` recomputes the page's worked example from
+`lib/scoring.ts` and asserts the rendered numbers agree, so the explainer can't
+drift away from the engine it documents.
 
 ### Environment variables
 

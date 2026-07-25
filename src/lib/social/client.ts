@@ -15,11 +15,6 @@ import type {
   RoommateConnection,
   AgentProfile,
 } from './types';
-import {
-  MOCK_ROOMMATE_CANDIDATES,
-  MOCK_CONNECTIONS,
-  MOCK_AGENTS,
-} from './mock-social';
 
 const BASE = import.meta.env?.VITE_API_BASE_URL || '';
 
@@ -55,7 +50,10 @@ async function authedPost<T>(path: string, body: unknown, token: string): Promis
 /** Anonymized candidate matches for the signed-in user (empty if opted out). */
 export async function matchRoommates(): Promise<RoommateCandidate[]> {
   const token = await accessToken();
-  if (!token) return MOCK_ROOMMATE_CANDIDATES;
+  // Signed out: nothing to show. These used to return invented people, which read
+  // as real strangers rather than as a demo — matching is only meaningful once
+  // there's an account to match against.
+  if (!token) return [];
   const { candidates } = await authedPost<{ candidates: RoommateCandidate[] }>(
     '/api/match-roommates',
     {},
@@ -67,7 +65,9 @@ export async function matchRoommates(): Promise<RoommateCandidate[]> {
 /** The user's connection requests (incoming + outgoing); emails only on accept. */
 export async function listConnections(): Promise<RoommateConnection[]> {
   const token = await accessToken();
-  if (!token) return MOCK_CONNECTIONS;
+  // Signed out: no requests exist. Never invent an inbound one — it reads as a
+  // real person waiting on a reply, and Accept/Decline would be silent no-ops.
+  if (!token) return [];
   const { connections } = await authedPost<{ connections: RoommateConnection[] }>(
     '/api/roommate-connect',
     { action: 'list' },
@@ -127,14 +127,12 @@ function toAgent(r: AgentRow): AgentProfile {
   };
 }
 
-const cityMatches = (agentCities: string[], city?: string) =>
-  !city || agentCities.some((c) => c.toLowerCase() === city.toLowerCase());
-
 /** Agents serving `city` (or all agents when no city given), verified first. */
 export async function listAgents(city?: string): Promise<AgentProfile[]> {
-  if (!isSupabaseEnabled || !supabase) {
-    return MOCK_AGENTS.filter((a) => cityMatches(a.cities, city));
-  }
+  // No backend: an empty directory. This used to return invented agents complete
+  // with brokerages and license numbers — indistinguishable from people a visitor
+  // could actually hire, which isn't a demo, it's a fabricated credential.
+  if (!isSupabaseEnabled || !supabase) return [];
   let query = supabase.from('agent_profiles').select(AGENT_COLS).eq('is_agent', true);
   if (city) query = query.contains('cities', [city]);
   const { data, error } = await query;

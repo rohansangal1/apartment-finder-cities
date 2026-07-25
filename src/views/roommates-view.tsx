@@ -13,8 +13,9 @@ import RoommateCard from '../components/roommate-card';
 
 /**
  * Roommates page. Three states:
+ *   - signed out             → explainer + CTA to sign in. Nothing is fetched.
  *   - signed-in but opted out → explainer + CTA to enable in Account (privacy-first).
- *   - opted in / demo         → grid of anonymized candidate matches + a Requests panel.
+ *   - opted in                → grid of anonymized candidate matches + a Requests panel.
  * All matching is server-computed over derived signals; contact is revealed only on
  * mutual accept (handled in the Requests panel).
  */
@@ -44,8 +45,9 @@ export default function RoommatesView() {
         const isOptedIn = profile?.roommateOptIn ?? false;
         if (cancelled) return;
         setOptedIn(isOptedIn);
-        // Only fetch matches when opted in, or in demo mode (no real account).
-        if (!isRealUser || isOptedIn) {
+        // Matching needs an account to match against — signed out, there's nothing
+        // to fetch and nothing honest to show.
+        if (isRealUser && isOptedIn) {
           const [cands] = await Promise.all([matchRoommates(), refreshConnections()]);
           if (!cancelled) setCandidates(cands);
         }
@@ -88,7 +90,9 @@ export default function RoommatesView() {
 
       {loading ? (
         <p className="text-sm text-slate-500">Finding people near your search…</p>
-      ) : isRealUser && optedIn === false ? (
+      ) : !isRealUser ? (
+        <SignInPrompt />
+      ) : optedIn === false ? (
         <OptInPrompt />
       ) : (
         <>
@@ -113,6 +117,24 @@ export default function RoommatesView() {
           </section>
         </>
       )}
+    </div>
+  );
+}
+
+function SignInPrompt() {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-ink p-6 text-center shadow-sm">
+      <h2 className="font-serif text-lg font-semibold text-slate-900">Sign in to find roommates</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+        Matching works off your saved places, budget, and cities, so it needs an account to compare
+        against. Nothing is shared until you opt in, and your exact saved addresses never are.
+      </p>
+      <Link
+        to="/account"
+        className="mt-4 inline-block rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+      >
+        Sign in
+      </Link>
     </div>
   );
 }

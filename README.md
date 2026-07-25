@@ -144,6 +144,11 @@ the user's normalized priority weights, and clamps to 0–100. `explainMatch()`
 turns the top sub-scores into the "why it matched" line. Unknown ratings sit at
 a neutral 60, never zero; missing data is never fabricated.
 
+Price fit measures the *headroom* a listing leaves against your cap rather than
+passing/failing at it, and the curve is continuous across the cap — going over
+budget can never improve a listing's price fit. `scoring.test.ts` pins that
+property, along with monotonicity and the 0–100 bounds.
+
 ## Design notes
 
 - **Cold start:** the schema supports first-party reviews from day one; the

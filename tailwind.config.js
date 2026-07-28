@@ -122,11 +122,13 @@ export default {
           '70%': { transform: 'scale(1.9)', opacity: '0' },
           '100%': { opacity: '0' },
         },
-        // The hero's detached fit-score card drifts, so it reads as an overlay
-        // above the photograph rather than part of it.
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-8px)' },
+        // Persistent attention-getter for the collapsed welcome notice: a soft
+        // bounce that settles at rest for most of the cycle, so it stays
+        // noticeable without becoming a distraction on every page.
+        nudge: {
+          '0%, 55%, 100%': { transform: 'translateY(0)' },
+          '70%': { transform: 'translateY(-7px)' },
+          '85%': { transform: 'translateY(-3px)' },
         },
       },
       animation: {
@@ -135,7 +137,7 @@ export default {
         growbar: 'growbar 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
         popin: 'popin 0.28s cubic-bezier(0.22, 1, 0.36, 1) both',
         pulsering: 'pulsering 2.6s ease-out infinite',
-        float: 'float 5s ease-in-out infinite',
+        nudge: 'nudge 2.8s ease-in-out infinite',
       },
     },
   },

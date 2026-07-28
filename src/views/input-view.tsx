@@ -202,29 +202,12 @@ export default function InputView() {
           </dl>
         </div>
 
-        <div className="relative">
-          <div className="overflow-hidden rounded-2xl shadow-soft-lg" style={{ aspectRatio: '6 / 5' }}>
-            <img
-              src={HERO_IMAGE}
-              alt="A warm, sunlit apartment interior"
-              className="lighten h-full w-full object-cover"
-            />
-          </div>
-          {/* Detached overlay card — the design's proof that the ranking is live. */}
-          <div className="card animate-float absolute -bottom-6 -left-4 w-[230px] p-4 shadow-soft-lg sm:-left-7">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-[0.1em] text-brand-600">
-                Live fit score
-              </span>
-              <span className="rounded-md bg-brand-100 px-2.5 py-0.5 text-[11px] text-brand-700">
-                94%
-              </span>
-            </div>
-            <div className="mt-1.5 text-[15px] text-slate-900">1200 Fillmore St, Unit 4</div>
-            <div className="mt-1 text-[11px] text-slate-400">
-              18 min commute · Fits 3 of 4 priorities
-            </div>
-          </div>
+        <div className="overflow-hidden rounded-2xl shadow-soft-lg" style={{ aspectRatio: '6 / 5' }}>
+          <img
+            src={HERO_IMAGE}
+            alt="A warm, sunlit apartment interior"
+            className="lighten h-full w-full object-cover"
+          />
         </div>
       </section>
 

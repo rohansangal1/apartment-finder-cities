@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSearch, DEFAULT_CRITERIA } from '../context/search-context';
 import { useUserData } from '../context/user-data-context';
 import AddressAutocomplete from '../components/address-autocomplete';
@@ -164,6 +164,27 @@ export default function InputView() {
             Tell us a little about your days — your commute, your budget, the space you need — and
             we'll gently rank homes by how well they fit. No endless scrolling.
           </p>
+          {/* The design's hero pair. "See how it ranks" is the one route into
+              the scoring explainer that a first-time visitor meets before
+              they've searched — every other link to it sits on a page you only
+              reach afterwards. */}
+          <div className="mt-8 flex animate-fadeup flex-wrap gap-3.5" style={{ animationDelay: '260ms' }}>
+            <button
+              type="button"
+              onClick={() =>
+                document.getElementById('wizard')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+              className="btn-outline px-5 py-3 text-[15px]"
+            >
+              Start matching →
+            </button>
+            <Link
+              to="/how-it-works"
+              className="inline-flex items-center rounded-lg border border-ink-600 px-5 py-3 text-[15px] font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
+            >
+              See how it ranks
+            </Link>
+          </div>
           <div className="hr my-8" />
           <dl className="flex animate-fadeup gap-12" style={{ animationDelay: '300ms' }}>
             {[

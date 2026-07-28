@@ -55,6 +55,17 @@ describe('search wizard', () => {
     expect(screen.getByRole('heading', { name: /Where are you looking/ })).toBeInTheDocument();
   });
 
+  // Every other route into the scoring explainer sits on a page you only reach
+  // after searching, so this hero link is the only one a first-time visitor
+  // meets. Pinned so it can't quietly disappear in a future hero edit.
+  it('offers the scoring explainer from the hero', () => {
+    renderWizard();
+    expect(screen.getByRole('link', { name: /See how it ranks/ })).toHaveAttribute(
+      'href',
+      '/how-it-works'
+    );
+  });
+
   it('walks forward through all four steps', async () => {
     const user = userEvent.setup();
     renderWizard();

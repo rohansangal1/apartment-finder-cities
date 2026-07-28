@@ -2,9 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { CONTACT_EMAIL, CONTACT_MAILTO } from '../lib/contact';
 
 /**
- * First-arrival notice: says plainly that Nester is still being built and invites
- * feedback. Shown once per browser session (sessionStorage, not localStorage) —
- * enough to catch every visit without nagging on every route change.
+ * First-arrival notice: says plainly that Nester is still being built, lists the
+ * known gaps, and invites feedback. Shown once per browser session
+ * (sessionStorage, not localStorage) — enough to catch every visit without
+ * nagging on every route change.
+ *
+ * Dismissing it doesn't destroy it: the notice collapses into a small floating
+ * "!" button that reopens it. The caveats below (demo data, broken links) are
+ * things a user hits mid-session, well after they've clicked past the modal, so
+ * there has to be a way back to them.
  *
  * This is the app's first dialog, so it also sets the overlay conventions:
  * backdrop + panel at z-50 (above the z-30 compare tray), Escape / backdrop /
@@ -66,7 +72,33 @@ export default function WelcomeModal() {
     if (open) closeRef.current?.focus();
   }, [open]);
 
-  if (!open) return null;
+  // Collapsed state: the notice lives on as a floating badge instead of
+  // disappearing. Sits below the sticky z-20 top bar rather than over it, so it
+  // never covers the Account button on desktop.
+  if (!open) {
+    return (
+      // The entrance and the bounce are two different animations on one
+      // element, and CSS only honours one `animation` per element — so the
+      // wrapper owns the pop-in and the button owns the looping bounce.
+      <div className="fixed right-4 top-20 z-40 motion-safe:animate-popin sm:right-6">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Show the work-in-progress notice"
+          title="Work in progress — read the notice"
+          // No backdrop-blur here: a backdrop-filter on a transform-animated
+          // element doesn't get repainted each frame, so the bounce only
+          // appeared on hover (when a colour change forced a repaint). The fill
+          // is opaque, so the blur was invisible anyway. transition-colors, not
+          // transition, keeps the hover tween off `transform` for the same
+          // reason.
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-amber-500/40 bg-ink-900 text-amber-500 shadow-soft-lg transition-colors will-change-transform hover:border-amber-500/70 hover:text-amber-400 focus:outline-none focus:ring-2 focus:ring-brand-500 motion-safe:animate-nudge"
+        >
+          <AlertIcon className="h-7 w-7" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -100,6 +132,30 @@ export default function WelcomeModal() {
           I'd genuinely love your feedback — what's confusing, what's missing, and what you'd
           want built next.
         </p>
+        <div className="mt-4 rounded-lg border border-ink-600 bg-ink-900/40 p-3.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-amber-500">
+            A couple of things to note
+          </p>
+          <ul className="mt-2.5 space-y-2 text-sm leading-relaxed text-slate-600">
+            <li className="flex gap-2.5">
+              <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+              <span>
+                <span className="font-medium text-slate-800">Many links are currently broken.</span>{' '}
+                Links out to listings, sources, and agents may not resolve yet — I'm actively
+                fixing them.
+              </span>
+            </li>
+            <li className="flex gap-2.5">
+              <span aria-hidden="true" className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+              <span>
+                <span className="font-medium text-slate-800">Listings are demo data.</span>{' '}
+                Everything you see is sample data used to build and test the matching engine — not
+                live inventory. Prices, ratings, and availability aren't real.
+              </span>
+            </li>
+          </ul>
+        </div>
+
         <p className="mt-3 text-sm leading-relaxed text-slate-600">
           Use the <span className="font-medium text-slate-800">Contact me</span> button in the
           bottom-right corner of any page, or email me directly at{' '}
@@ -125,6 +181,16 @@ export default function WelcomeModal() {
 }
 
 // ---- icons ----
+/** Exclamation mark for the collapsed notice badge. */
+function AlertIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 6v8" />
+      <path d="M12 18h.01" />
+    </svg>
+  );
+}
+
 export function CloseIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

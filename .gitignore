@@ -9,3 +9,6 @@ dist
 
 api/__pycache__/
 *.tsbuildinfo
+
+# Local AI assistant instructions — personal, not part of the project.
+CLAUDE.md

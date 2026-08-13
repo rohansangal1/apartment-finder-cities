@@ -22,6 +22,7 @@ import { HttpError } from './_lib/env.js';
 import { enforceDailyQuota } from './_lib/rateLimit.js';
 import { generateTurn, MAX_TURNS, MODEL, type Content } from './_lib/ai/gemma.js';
 import { declarationsFor, runTool, type ToolContext } from './_lib/ai/tools.js';
+import { awaitModelSlot } from './_lib/ai/throughput.js';
 import type { Listing, CommuteMode } from '../src/lib/types.js';
 
 /** Notes runs per IP per day. Generous for a real shopper, useless for a scraper. */
@@ -90,6 +91,12 @@ export default withStreamHandler('POST', async (req: VercelRequest, emit: Emit) 
   const tools = declarationsFor(ctx);
 
   emit('step', { label: 'Reading the listing' });
+
+  // Hold here if the project is already at its per-minute model throughput.
+  // Waiting a few seconds is a better outcome than a 429 the user has to act
+  // on, so a burst of clicks queues rather than half-failing. The step label
+  // only appears when we actually have to wait, so a quiet moment shows nothing.
+  await awaitModelSlot(() => emit('step', { label: 'Waiting for a free slot' }));
 
   const contents: Content[] = [
     {

@@ -136,8 +136,15 @@ export function withStreamHandler(method: 'GET' | 'POST', fn: StreamHandler) {
       const status = err instanceof HttpError ? err.status : 500;
       const message = err instanceof Error ? err.message : 'Unexpected server error.';
       if (status >= 500) console.error(err);
-      if (started) emit('error', { message });
-      else res.status(status).json({ error: message });
+      if (started) {
+        // The stream must still be closed after an error event. Leaving it open
+        // hangs the client's reader forever — it never sees the end of the body,
+        // so a failed run looks like a run that's still going.
+        emit('error', { message });
+        res.end();
+      } else {
+        res.status(status).json({ error: message });
+      }
       return;
     }
     res.end();

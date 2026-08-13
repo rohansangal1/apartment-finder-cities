@@ -27,7 +27,7 @@ shared server code.
 - **`budgetGuard.ts`** — daily spend estimate + circuit breaker; trips at `DAILY_BUDGET_USD`.
 - **`handler.ts`** — wraps every endpoint: CORS, method check, rate limit, error → JSON. `withStreamHandler` is the SSE sibling for `/api/ai-notes` (same gate, streams events instead of one body; runs on the normal Node runtime — streaming does not need the edge runtime).
 - **`providers/`** — `rentcast` (listings), `google` (geocode + commute via Routes), `places` (ratings + `fetchNearbyPlaces` for AI notes).
-- **`ai/`** — `gemma.ts` (Gemma 4 over the Gemini API, one tool-calling turn per call, capped at 4 turns) and `tools.ts` (the three lookups the model can run, each wrapping an existing provider). Gemma is free-tier only, so its quota is shared by all users: `/api/ai-notes` caps each IP at 25 runs a day and maps upstream 429s to a plain-English message.
+- **`ai/`** — `gemma.ts` (Gemma 4 over the Gemini API, one tool-calling turn per call, capped at 4 turns), `tools.ts` (the three lookups the model can run, each wrapping an existing provider), and `throughput.ts` (global admission control). Gemma is free-tier only, so the quota is shared by every user of the app: a measured run costs ~2,500 tokens across 2 model calls, and the free tier allows ~15,000 tokens/minute project-wide — about six runs a minute for everyone combined. `throughput.ts` admits five per rolling minute and queues the rest for up to a minute, so a burst of clicks comes out slower rather than half-failing. `/api/ai-notes` also caps each IP at 25 runs a day.
 - **`ratings.ts`** — blends external + first-party reviews (first-party empty until Phase 2).
 - **`orchestrate.ts`** — the `/api/search` flow; reuses the SAME `src/lib/scoring.ts` as the client.
 

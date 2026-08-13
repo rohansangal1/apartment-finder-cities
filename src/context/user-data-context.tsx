@@ -20,7 +20,13 @@ import {
 import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../lib/types';
 import type { UserStore, SavedListing, SavedSearch, SavedAddress } from '../lib/user-data/types';
 import type { SocialProfile } from '../lib/social/types';
-import { localStore, clearLocalSaved } from '../lib/user-data/local-store';
+import type { AiNotes } from '../lib/ai-notes';
+import {
+  localStore,
+  clearLocalSaved,
+  readLocalAiNotes,
+  clearLocalAiNotes,
+} from '../lib/user-data/local-store';
 import { createSupabaseStore } from '../lib/user-data/supabase-store';
 import { createDocumentsClient, type DocumentsClient } from '../lib/user-data/documents';
 import { supabase } from '../lib/supabase';
@@ -32,6 +38,10 @@ interface UserDataContextValue {
   isSaved: (id: string) => boolean;
   toggleSaved: (listing: Listing) => Promise<void>;
   setNote: (listingId: string, note: string) => Promise<void>;
+  /** AI-written notes by listing id. Keyed independently of the shortlist, so
+   * notes generated on a results card follow the listing into Saved. */
+  aiNotes: Record<string, AiNotes>;
+  saveAiNotes: (listingId: string, notes: AiNotes) => Promise<void>;
   canWriteReviews: boolean;
   getReviews: (listingId: string) => Promise<Review[]>;
   addReview: (review: NewReview) => Promise<Review>;
@@ -74,6 +84,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const [savedListings, setSavedListings] = useState<SavedListing[]>([]);
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [aiNotes, setAiNotesState] = useState<Record<string, AiNotes>>({});
   const savedIds = useMemo(
     () => new Set(savedListings.map((s) => s.listing.id)),
     [savedListings]
@@ -122,6 +133,37 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setSavedSearches(s);
       })
       .catch((e) => console.error('Failed to load saved searches', e));
+    return () => {
+      cancelled = true;
+    };
+  }, [store]);
+
+  // Load AI notes from the active store. Same fail-soft pattern as saved
+  // searches: if the ai_notes table hasn't been migrated yet we just show none,
+  // and every listing keeps its "Generate notes" button.
+  //
+  // The guest→account merge mirrors the shortlist merge above: notes written
+  // before signing in are pushed into the account and cleared locally, so a user
+  // doesn't lose work by creating an account.
+  useEffect(() => {
+    let cancelled = false;
+    const usingAccount = store !== localStore;
+    (async () => {
+      try {
+        if (usingAccount) {
+          const local = readLocalAiNotes();
+          const entries = Object.entries(local);
+          if (entries.length) {
+            await Promise.all(entries.map(([id, n]) => store.saveAiNotes(id, n)));
+            clearLocalAiNotes();
+          }
+        }
+        const notes = await store.listAiNotes();
+        if (!cancelled) setAiNotesState(notes);
+      } catch (e) {
+        console.error('Failed to load AI notes', e);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -227,6 +269,18 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     [store, savedAddresses]
   );
 
+  // Not optimistic, unlike setNote: notes take several seconds to generate and
+  // the panel already shows them streaming in, so the only thing left to do is
+  // commit. If the write fails the caller surfaces it and nothing is shown as
+  // saved that isn't — the user can run it again.
+  const saveAiNotes = useCallback(
+    async (listingId: string, notes: AiNotes) => {
+      await store.saveAiNotes(listingId, notes);
+      setAiNotesState((cur) => ({ ...cur, [listingId]: notes }));
+    },
+    [store]
+  );
+
   const getReviews = useCallback((listingId: string) => store.getReviews(listingId), [store]);
   const addReview = useCallback((review: NewReview) => store.addReview(review), [store]);
   const getPreferences = useCallback(() => store.getPreferences(), [store]);
@@ -246,6 +300,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     isSaved: (id) => savedIds.has(id),
     toggleSaved,
     setNote,
+    aiNotes,
+    saveAiNotes,
     canWriteReviews: enabled && Boolean(user),
     getReviews,
     addReview,

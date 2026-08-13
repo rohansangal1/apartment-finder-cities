@@ -17,6 +17,7 @@ shared server code.
 | `/api/geocode` | GET | `?address=` → `{ lat, lng }` (cached ~forever). |
 | `/api/commute` | GET | `?originLat&originLng&destLat&destLng&mode` → `{ minutes, mode }`. Progressive hydration. |
 | `/api/rating` | GET | `?address&city` → `{ value, source }`. `value: null` when sparse. |
+| `/api/ai-notes` | POST | **Server-Sent Events**, not JSON. Body = `{ listing, workAddress?, commuteMode? }`. Streams `step` / `token` / `done` / `error` events while Gemma 4 researches and writes notes about one listing. |
 
 ## `_lib/` building blocks
 
@@ -24,8 +25,9 @@ shared server code.
 - **`cache.ts`** — read-through cache. Upstash Redis when `UPSTASH_*` is set, else in-process Map. TTLs: geocode ~1yr, commute 2wk, rating 1wk, listings 6h.
 - **`rateLimit.ts`** — per-IP fixed-window limiter (Upstash or memory). 429 when exceeded.
 - **`budgetGuard.ts`** — daily spend estimate + circuit breaker; trips at `DAILY_BUDGET_USD`.
-- **`handler.ts`** — wraps every endpoint: CORS, method check, rate limit, error → JSON.
-- **`providers/`** — `rentcast` (listings), `google` (geocode + commute via Routes), `places` (ratings).
+- **`handler.ts`** — wraps every endpoint: CORS, method check, rate limit, error → JSON. `withStreamHandler` is the SSE sibling for `/api/ai-notes` (same gate, streams events instead of one body; runs on the normal Node runtime — streaming does not need the edge runtime).
+- **`providers/`** — `rentcast` (listings), `google` (geocode + commute via Routes), `places` (ratings + `fetchNearbyPlaces` for AI notes).
+- **`ai/`** — `gemma.ts` (Gemma 4 over the Gemini API, one tool-calling turn per call, capped at 4 turns) and `tools.ts` (the three lookups the model can run, each wrapping an existing provider). Gemma is free-tier only, so its quota is shared by all users: `/api/ai-notes` caps each IP at 25 runs a day and maps upstream 429s to a plain-English message.
 - **`ratings.ts`** — blends external + first-party reviews (first-party empty until Phase 2).
 - **`orchestrate.ts`** — the `/api/search` flow; reuses the SAME `src/lib/scoring.ts` as the client.
 
@@ -35,8 +37,12 @@ shared server code.
    (see `.env.example`). The Google key needs Geocoding API, Routes API, and
    Places API (New) enabled.
 2. (Recommended) Set `UPSTASH_REDIS_REST_URL` + `_TOKEN` so cache + rate limits
-   are durable across invocations.
-3. Set the client's `VITE_DATA_SOURCE=api` and redeploy.
+   are durable across invocations. This matters more for AI notes than anything
+   else: without it the per-IP daily cap resets whenever a function instance is
+   recycled.
+3. For AI notes, set `GEMINI_API_KEY` (from aistudio.google.com) and apply the
+   `0011_ai_notes.sql` migration. Without the key the endpoint returns 503.
+4. Set the client's `VITE_DATA_SOURCE=api` and redeploy.
 
 ## Local development
 

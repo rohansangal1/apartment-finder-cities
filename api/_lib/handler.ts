@@ -10,6 +10,12 @@ import { enforceRateLimit } from './rateLimit.js';
 /** Any JSON-serializable payload an endpoint returns. */
 type Handler = (req: VercelRequest) => Promise<unknown>;
 
+/** Writes one named SSE event. Data is JSON-encoded on a single line. */
+export type Emit = (event: string, data: unknown) => void;
+
+/** A streaming endpoint: pushes events as it works instead of returning a body. */
+type StreamHandler = (req: VercelRequest, emit: Emit) => Promise<void>;
+
 /** Best-effort client IP from proxy headers. */
 function clientIp(req: VercelRequest): string {
   const fwd = req.headers['x-forwarded-for'];
@@ -47,25 +53,34 @@ function resolveAllowedOrigin(req: VercelRequest): string | null {
   return null;
 }
 
+/**
+ * CORS + preflight + method check, shared by the JSON and streaming wrappers.
+ * Returns false when it has already ended the response and the caller should stop.
+ */
+function preamble(req: VercelRequest, res: VercelResponse, method: 'GET' | 'POST'): boolean {
+  const allowOrigin = resolveAllowedOrigin(req);
+  if (allowOrigin) res.setHeader('Access-Control-Allow-Origin', allowOrigin);
+  // Because the ACAO value now depends on the incoming Origin, caches (CDN,
+  // browser) must key on it too — otherwise one origin's cached response could
+  // be replayed for another. `Vary: Origin` tells them exactly that.
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return false;
+  }
+  if (req.method !== method) {
+    res.status(405).json({ error: `Method not allowed. Use ${method}.` });
+    return false;
+  }
+  return true;
+}
+
 export function withHandler(method: 'GET' | 'POST', fn: Handler) {
   return async (req: VercelRequest, res: VercelResponse) => {
-    const allowOrigin = resolveAllowedOrigin(req);
-    if (allowOrigin) res.setHeader('Access-Control-Allow-Origin', allowOrigin);
-    // Because the ACAO value now depends on the incoming Origin, caches (CDN,
-    // browser) must key on it too — otherwise one origin's cached response could
-    // be replayed for another. `Vary: Origin` tells them exactly that.
-    res.setHeader('Vary', 'Origin');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-      res.status(204).end();
-      return;
-    }
-    if (req.method !== method) {
-      res.status(405).json({ error: `Method not allowed. Use ${method}.` });
-      return;
-    }
+    if (!preamble(req, res, method)) return;
 
     try {
       await enforceRateLimit(clientIp(req));
@@ -78,5 +93,53 @@ export function withHandler(method: 'GET' | 'POST', fn: Handler) {
       if (status >= 500) console.error(err);
       res.status(status).json({ error: message });
     }
+  };
+}
+
+/**
+ * Streaming sibling of withHandler: same CORS/method/rate-limit gate, but the
+ * endpoint pushes Server-Sent Events as it works instead of returning one body.
+ *
+ * Why SSE rather than a buffered JSON reply: generating notes takes several
+ * seconds of real lookups, and the UI shows each step as it happens. This runs
+ * on the default Node runtime — streaming does NOT require the edge runtime.
+ *
+ * Error handling has two halves. A failure *before* the first event (missing
+ * key, rate limit) hasn't committed to a stream yet, so we answer with the same
+ * JSON error shape every other endpoint uses. Once bytes are on the wire the
+ * status line is already sent, so a failure can only be reported as an `error`
+ * event — which the client treats as a failed run.
+ */
+export function withStreamHandler(method: 'GET' | 'POST', fn: StreamHandler) {
+  return async (req: VercelRequest, res: VercelResponse) => {
+    if (!preamble(req, res, method)) return;
+
+    let started = false;
+    const emit: Emit = (event, data) => {
+      if (!started) {
+        started = true;
+        res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
+        res.setHeader('Connection', 'keep-alive');
+        // Tell any intermediary proxy not to buffer — buffering would defeat
+        // the whole point by holding every step until the response completes.
+        res.setHeader('X-Accel-Buffering', 'no');
+        res.status(200);
+      }
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    try {
+      await enforceRateLimit(clientIp(req));
+      await fn(req, emit);
+    } catch (err) {
+      const status = err instanceof HttpError ? err.status : 500;
+      const message = err instanceof Error ? err.message : 'Unexpected server error.';
+      if (status >= 500) console.error(err);
+      if (started) emit('error', { message });
+      else res.status(status).json({ error: message });
+      return;
+    }
+    res.end();
   };
 }

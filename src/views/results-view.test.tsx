@@ -54,6 +54,9 @@ vi.mock('../context/user-data-context', () => ({
     savedListings: [],
     isSaved: () => false,
     toggleSaved: vi.fn(),
+    // Cards render AI notes when a listing has them; none here.
+    aiNotes: {},
+    saveAiNotes: vi.fn(),
   }),
 }));
 vi.mock('../context/compare-context', () => ({

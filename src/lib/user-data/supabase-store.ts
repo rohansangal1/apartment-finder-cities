@@ -10,6 +10,7 @@ import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../types';
 import type { UserStore, SavedListing, SavedSearch, SavedAddress } from './types';
 import type { SocialProfile } from '../social/types';
+import type { AiNotes } from '../ai-notes';
 import { buildRoommateSignal } from '../match/roommate-signal';
 
 interface ReviewRow {
@@ -102,6 +103,27 @@ export function createSupabaseStore(supabase: SupabaseClient, user: User): UserS
         .update({ notes: note })
         .eq('user_id', user.id)
         .eq('listing_id', listingId);
+      if (error) throw error;
+    },
+
+    async listAiNotes() {
+      const { data, error } = await supabase
+        .from('ai_notes')
+        .select('listing_id, notes')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return Object.fromEntries(
+        (data ?? []).map((r) => [r.listing_id as string, r.notes as AiNotes])
+      );
+    },
+
+    async saveAiNotes(listingId, notes) {
+      const { error } = await supabase
+        .from('ai_notes')
+        .upsert(
+          { user_id: user.id, listing_id: listingId, notes },
+          { onConflict: 'user_id,listing_id' }
+        );
       if (error) throw error;
     },
 

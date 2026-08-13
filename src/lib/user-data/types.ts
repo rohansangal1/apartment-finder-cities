@@ -10,6 +10,7 @@
  */
 import type { Listing, Review, NewReview, UserPreferences, SearchCriteria } from '../types';
 import type { SocialProfile } from '../social/types';
+import type { AiNotes } from '../ai-notes';
 
 /** A shortlisted listing: the full snapshot captured at save time + when. */
 export interface SavedListing {
@@ -44,6 +45,12 @@ export interface UserStore {
   setSaved(listing: Listing, saved: boolean): Promise<void>;
   /** Attach/replace the private note on an already-saved listing. */
   setNote(listingId: string, note: string): Promise<void>;
+
+  /** AI-written notes, keyed by listing id. Deliberately independent of the
+   * shortlist: notes can be generated from a results card before anything is
+   * saved, and are already attached if the user saves it later. */
+  listAiNotes(): Promise<Record<string, AiNotes>>;
+  saveAiNotes(listingId: string, notes: AiNotes): Promise<void>;
 
   getPreferences(): Promise<UserPreferences | null>;
   savePreferences(prefs: UserPreferences): Promise<void>;

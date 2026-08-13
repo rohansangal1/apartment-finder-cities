@@ -10,6 +10,8 @@ import { optionalEnv, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_SEC, HttpError } from '.
 
 interface Limiter {
   hit(ip: string): Promise<{ allowed: boolean; remaining: number }>;
+  /** Increment an arbitrary counter that expires after `ttlSec`. */
+  count(key: string, ttlSec: number): Promise<number>;
 }
 
 class RedisLimiter implements Limiter {
@@ -21,10 +23,16 @@ class RedisLimiter implements Limiter {
     if (count === 1) await this.redis.expire(key, RATE_LIMIT_WINDOW_SEC);
     return { allowed: count <= RATE_LIMIT_MAX, remaining: Math.max(0, RATE_LIMIT_MAX - count) };
   }
+  async count(key: string, ttlSec: number) {
+    const n = await this.redis.incr(key);
+    if (n === 1) await this.redis.expire(key, ttlSec);
+    return n;
+  }
 }
 
 class MemoryLimiter implements Limiter {
   private hits = new Map<string, number>();
+  private counters = new Map<string, number>();
   async hit(ip: string) {
     const bucket = Math.floor(Date.now() / 1000 / RATE_LIMIT_WINDOW_SEC);
     const key = `${ip}:${bucket}`;
@@ -33,6 +41,14 @@ class MemoryLimiter implements Limiter {
     // Opportunistic cleanup of old buckets.
     if (this.hits.size > 5000) this.hits.clear();
     return { allowed: count <= RATE_LIMIT_MAX, remaining: Math.max(0, RATE_LIMIT_MAX - count) };
+  }
+  async count(key: string, _ttlSec: number) {
+    // No expiry in the dev fallback — the key already carries the day, so old
+    // days simply stop being read (and the process is short-lived anyway).
+    const n = (this.counters.get(key) ?? 0) + 1;
+    this.counters.set(key, n);
+    if (this.counters.size > 5000) this.counters.clear();
+    return n;
   }
 }
 
@@ -53,4 +69,21 @@ export async function enforceRateLimit(ip: string): Promise<void> {
   if (!allowed) {
     throw new HttpError(429, 'Too many requests. Please slow down and try again shortly.');
   }
+}
+
+/**
+ * A tighter, per-day cap for one named feature, on top of the global per-window
+ * limit. AI notes need this because they draw on a *shared* free-tier model
+ * quota — one enthusiastic visitor generating notes all afternoon would leave
+ * nothing for anyone else, which the 30-per-minute limit does nothing to stop.
+ */
+export async function enforceDailyQuota(
+  feature: string,
+  ip: string,
+  max: number,
+  message: string
+): Promise<void> {
+  const day = new Date().toISOString().slice(0, 10);
+  const used = await getLimiter().count(`q:${feature}:${ip || 'unknown'}:${day}`, 86_400);
+  if (used > max) throw new HttpError(429, message);
 }

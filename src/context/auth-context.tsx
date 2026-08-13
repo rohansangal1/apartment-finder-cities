@@ -47,6 +47,9 @@ interface AuthContextValue {
   user: User | null;
   status: AuthStatus;
   signInWithGoogle: () => Promise<void>;
+  /** Exchange a Google Identity Services credential for a Supabase session.
+   * Preferred over signInWithGoogle — see google-signin-button.tsx. */
+  signInWithGoogleIdToken: (credential: string, nonce: string) => Promise<void>;
   signUpWithPassword: (params: SignUpParams) => Promise<SignUpResult>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -73,6 +76,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => sub.subscription.unsubscribe();
+  }, []);
+
+  /**
+   * The in-page Google path: the browser already holds a Google ID token, so we
+   * trade it for a Supabase session without ever redirecting to supabase.co —
+   * which is what kept Google's account chooser naming the Supabase host rather
+   * than this app. `nonce` is the raw value whose hash was given to Google;
+   * Supabase re-hashes it to verify the token was minted for this request.
+   */
+  const signInWithGoogleIdToken = useCallback(async (credential: string, nonce: string) => {
+    if (!supabase) throw new Error('Auth is not configured.');
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: credential,
+      nonce,
+    });
+    if (error) throw error;
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
@@ -149,6 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (!supabase) return;
+    // GIS remembers the last account and will auto-select it on the next visit,
+    // which is the same "drops you straight back into the same account" problem
+    // that prompt=select_account solves for the redirect flow.
+    window.google?.accounts.id.disableAutoSelect();
     await supabase.auth.signOut();
   }, []);
 
@@ -157,6 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     status,
     signInWithGoogle,
+    signInWithGoogleIdToken,
     signUpWithPassword,
     signInWithPassword,
     resetPassword,

@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import type { Listing } from '../lib/types';
 import { useUserData } from '../context/user-data-context';
+import { useAuth } from '../context/auth-context';
 import AiNotesPanel from './ai-notes-panel';
 import NotesBody from './ai-notes-body';
 
@@ -20,6 +22,11 @@ import NotesBody from './ai-notes-body';
  *
  * `variant="compact"` is for the results grid, where a full notes block would
  * wreck the scannability of the card: it shows a one-line summary that expands.
+ *
+ * Generating requires an account, because each run spends from a shared model
+ * quota the server has to attribute to someone. Notes already generated stay
+ * visible regardless — hiding what someone already has would be a punishment,
+ * not a gate.
  */
 export default function AiNotesButton({
   listing,
@@ -31,6 +38,7 @@ export default function AiNotesButton({
   className?: string;
 }) {
   const { aiNotes } = useUserData();
+  const { enabled: authEnabled, user } = useAuth();
   const [open, setOpen] = useState(false);
   const notes = aiNotes[listing.id];
 
@@ -55,6 +63,27 @@ export default function AiNotesButton({
         <NotesBody text={notes.text} />
         <Attribution sources={notes.sources} model={notes.model} />
       </div>
+    );
+  }
+
+  // Auth isn't configured at all (guest-mode build): the endpoint would reject
+  // every run, so offering the trigger would be a lie. Show nothing instead.
+  if (!authEnabled) return null;
+
+  if (!user) {
+    return (
+      <Link
+        to="/account"
+        title="Sign in to generate notes about this place"
+        className={
+          variant === 'compact'
+            ? `inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-brand-600 ${className}`
+            : `mt-3 inline-flex items-center gap-2 rounded-lg border border-ink-600 px-3 py-2 text-sm font-medium text-slate-500 transition hover:border-brand-600 hover:text-brand-600 ${className}`
+        }
+      >
+        <Sparkles className="h-4 w-4 text-brand-500" aria-hidden="true" />
+        Sign in for notes
+      </Link>
     );
   }
 

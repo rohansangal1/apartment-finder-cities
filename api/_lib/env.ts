@@ -32,6 +32,15 @@ export const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || '30');
 export const RATE_LIMIT_WINDOW_SEC = Number(process.env.RATE_LIMIT_WINDOW_SEC || '60');
 
 /**
+ * Burst ceiling for AI notes, per signed-in user. Much tighter than the blanket
+ * per-IP limit because a notes run costs real model tokens while a cached search
+ * costs nothing — and because a human deciding on apartments has no reason to
+ * start more than a handful of runs in a minute.
+ */
+export const AI_RATE_LIMIT_MAX = Number(process.env.AI_RATE_LIMIT_MAX || '5');
+export const AI_RATE_LIMIT_WINDOW_SEC = Number(process.env.AI_RATE_LIMIT_WINDOW_SEC || '60');
+
+/**
  * A typed HTTP error the endpoints can throw and the shared handler maps to a
  * status code + JSON body.
  */

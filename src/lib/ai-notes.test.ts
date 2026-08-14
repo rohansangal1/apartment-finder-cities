@@ -2,6 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { streamNotes, __test, type AiNotes, type NotesEvent } from './ai-notes';
 import type { Listing } from './types';
 
+// Notes runs are authenticated, so the client reads the current Supabase
+// session for a bearer token. Signed in by default; the auth tests vary it.
+const session = { access_token: 'jwt-abc' } as { access_token: string } | null;
+const auth = { session };
+vi.mock('./supabase', () => ({
+  isSupabaseEnabled: true,
+  supabase: { auth: { getSession: async () => ({ data: { session: auth.session } }) } },
+}));
+
 const { parseFrame } = __test;
 
 const listing = (over: Partial<Listing> = {}): Listing => ({
@@ -68,6 +77,7 @@ describe('parseFrame', () => {
 describe('streamNotes', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    auth.session = { access_token: 'jwt-abc' };
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -214,5 +224,27 @@ describe('streamNotes', () => {
     expect(body.listing.id).toBe('l9');
     expect(body.workAddress).toBe('1 Main St');
     expect(body.commuteMode).toBe('bike');
+  });
+
+  // ---- Auth ----
+  // The endpoint bills a shared model quota to a user id, so it rejects anything
+  // without a verified session. The client has to actually send the token.
+  it('authenticates the request with the current session token', async () => {
+    vi.mocked(fetch).mockResolvedValue(sseResponse([frame('done', DONE)]));
+
+    await streamNotes(listing(), {}, () => {});
+
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const headers = init?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer jwt-abc');
+  });
+
+  // Failing here rather than at the network boundary keeps a signed-out click
+  // from burning a request that can only ever come back 401.
+  it('refuses to send a run when signed out', async () => {
+    auth.session = null;
+
+    await expect(streamNotes(listing(), {}, () => {})).rejects.toThrow(/sign in/i);
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

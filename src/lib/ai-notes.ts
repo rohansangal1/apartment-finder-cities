@@ -16,6 +16,7 @@
  * later carries the notes across.
  */
 import type { Listing, CommuteMode } from './types';
+import { supabase, isSupabaseEnabled } from './supabase';
 
 /** The feature is live. (Kept as a named export: call sites read it.) */
 export const AI_NOTES_ENABLED = true;
@@ -46,7 +47,24 @@ export type NotesEvent =
 const BASE = import.meta.env?.VITE_API_BASE_URL || '';
 
 /**
+ * The caller's Supabase access token, or null when signed out.
+ *
+ * Read fresh per run rather than captured once: the SDK rotates the token on
+ * refresh, and a stale one would come back as a 401 partway through a session.
+ */
+async function accessToken(): Promise<string | null> {
+  if (!isSupabaseEnabled || !supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+/**
  * Generate notes for a listing, reporting progress as it goes.
+ *
+ * Requires a signed-in user: every run spends from a shared model quota, so the
+ * endpoint attributes it to an account. The UI gates the trigger on the same
+ * condition — this check is the honest failure for the case where a session
+ * expires between opening the panel and the request going out.
  *
  * Resolves with the finished notes, or rejects with a human-readable message —
  * including the 429 the shared free tier will occasionally produce.
@@ -56,9 +74,12 @@ export async function streamNotes(
   options: { workAddress?: string; commuteMode?: CommuteMode; signal?: AbortSignal },
   onEvent: (event: NotesEvent) => void
 ): Promise<AiNotes> {
+  const token = await accessToken();
+  if (!token) throw new Error('Sign in to generate notes.');
+
   const res = await fetch(`${BASE}/api/ai-notes`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({
       listing,
       workAddress: options.workAddress,

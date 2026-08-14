@@ -12,21 +12,41 @@
  *
  * Every `step` is emitted at the moment a lookup actually fires (see
  * `_lib/ai/tools.ts`) — the panel never shows progress for work that didn't
- * happen. Guests are allowed, matching the rest of the app, but the shared
- * free-tier model quota means this endpoint carries a per-IP daily cap on top of
- * the usual per-minute limit.
+ * happen.
+ *
+ * Unlike the rest of the app, this endpoint requires a signed-in user. Every run
+ * spends from a shared free-tier model quota, so an anonymous caller is a cost
+ * we can't attribute, cap, or revoke. Requiring a verified identity is what makes
+ * the per-user limits below meaningful — an IP is not an identity.
+ *
+ * Gates run cheapest-first, so a flood is refused before it spends anything:
+ *
+ *   1. per-IP per-minute   (withStreamHandler, blanket — no I/O)
+ *   2. auth                (requireUserId → 401)
+ *   3. per-user per-minute (burst control)
+ *   4. per-user per-day    (budget control)
+ *   5. per-IP per-day      (backstop against many throwaway accounts)
+ *   6. global throughput   (awaitModelSlot — project-wide token ceiling)
  */
 import type { VercelRequest } from '@vercel/node';
 import { withStreamHandler, type Emit } from './_lib/handler.js';
-import { HttpError } from './_lib/env.js';
-import { enforceDailyQuota } from './_lib/rateLimit.js';
+import { HttpError, AI_RATE_LIMIT_MAX, AI_RATE_LIMIT_WINDOW_SEC } from './_lib/env.js';
+import { enforceDailyQuota, enforceUserQuota } from './_lib/rateLimit.js';
+import { requireUserId } from './_lib/supabase-admin.js';
 import { generateTurn, MAX_TURNS, MODEL, type Content } from './_lib/ai/gemma.js';
 import { declarationsFor, runTool, type ToolContext } from './_lib/ai/tools.js';
 import { awaitModelSlot } from './_lib/ai/throughput.js';
 import type { Listing, CommuteMode } from '../src/lib/types.js';
 
-/** Notes runs per IP per day. Generous for a real shopper, useless for a scraper. */
+/** Notes runs per user per day. Generous for a real shopper, useless for a scraper. */
 const DAILY_MAX = 25;
+
+/**
+ * Per-IP daily backstop, sitting above the per-user cap so it only bites when a
+ * single origin is driving many accounts. Deliberately not a multiple of
+ * DAILY_MAX: a household or an office sharing one NAT is normal traffic.
+ */
+const IP_DAILY_MAX = 60;
 
 const SYSTEM_PROMPT = `You are helping someone decide whether an apartment is worth their time.
 
@@ -66,12 +86,30 @@ interface RequestBody {
 }
 
 export default withStreamHandler('POST', async (req: VercelRequest, emit: Emit) => {
-  const body = (req.body ?? {}) as RequestBody;
-  const listing = body.listing;
-  if (!listing?.id || typeof listing.lat !== 'number' || typeof listing.lng !== 'number') {
-    throw new HttpError(400, 'A listing with coordinates is required.');
-  }
+  // Auth before anything else. It's the only gate that establishes *who* is
+  // spending, so every limit below is keyed off its result — and it runs before
+  // the body is even parsed, so an unauthenticated flood costs us one token
+  // verification and nothing more.
+  const userId = await requireUserId(req);
 
+  // Burst, then budget. Both are keyed on the verified user id.
+  await enforceUserQuota(
+    'ai-notes',
+    userId,
+    AI_RATE_LIMIT_MAX,
+    AI_RATE_LIMIT_WINDOW_SEC,
+    `That's ${AI_RATE_LIMIT_MAX} sets of notes in under a minute — give it a moment and try again.`
+  );
+  await enforceUserQuota(
+    'ai-notes-daily',
+    userId,
+    DAILY_MAX,
+    86_400,
+    `You've generated ${DAILY_MAX} sets of notes today — that's the daily limit. Try again tomorrow.`
+  );
+
+  // Backstop: one origin driving many accounts. Only bites well above what a
+  // shared household or office connection would produce.
   const ip =
     (typeof req.headers['x-forwarded-for'] === 'string'
       ? req.headers['x-forwarded-for'].split(',')[0].trim()
@@ -79,9 +117,15 @@ export default withStreamHandler('POST', async (req: VercelRequest, emit: Emit) 
   await enforceDailyQuota(
     'ai-notes',
     ip,
-    DAILY_MAX,
-    `You've generated ${DAILY_MAX} sets of notes today — that's the daily limit. Try again tomorrow.`
+    IP_DAILY_MAX,
+    'AI notes have hit their daily limit for this network. Try again tomorrow.'
   );
+
+  const body = (req.body ?? {}) as RequestBody;
+  const listing = body.listing;
+  if (!listing?.id || typeof listing.lat !== 'number' || typeof listing.lng !== 'number') {
+    throw new HttpError(400, 'A listing with coordinates is required.');
+  }
 
   const ctx: ToolContext = {
     listing,

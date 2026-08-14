@@ -17,17 +17,17 @@ shared server code.
 | `/api/geocode` | GET | `?address=` → `{ lat, lng }` (cached ~forever). |
 | `/api/commute` | GET | `?originLat&originLng&destLat&destLng&mode` → `{ minutes, mode }`. Progressive hydration. |
 | `/api/rating` | GET | `?address&city` → `{ value, source }`. `value: null` when sparse. |
-| `/api/ai-notes` | POST | **Server-Sent Events**, not JSON. Body = `{ listing, workAddress?, commuteMode? }`. Streams `step` / `token` / `done` / `error` events while Gemma 4 researches and writes notes about one listing. |
+| `/api/ai-notes` | POST | **Auth required** (`Authorization: Bearer <supabase jwt>` → 401 without one). **Server-Sent Events**, not JSON. Body = `{ listing, workAddress?, commuteMode? }`. Streams `step` / `token` / `done` / `error` events while Gemma 4 researches and writes notes about one listing. |
 
 ## `_lib/` building blocks
 
 - **`env.ts`** — `requireEnv` (503 on missing key), budget/rate-limit config, `HttpError`.
 - **`cache.ts`** — read-through cache. Upstash Redis when `UPSTASH_*` is set, else in-process Map. TTLs: geocode ~1yr, commute 2wk, rating 1wk, listings 6h.
-- **`rateLimit.ts`** — per-IP fixed-window limiter (Upstash or memory). 429 when exceeded.
+- **`rateLimit.ts`** — fixed-window limiters (Upstash or memory), 429 when exceeded: `enforceRateLimit` (per-IP, blanket), `enforceDailyQuota` (per-IP per-day, one named feature), `enforceUserQuota` (per authenticated user id, any window). An IP is not an identity — it's shared behind NAT and cheap to rotate — so anything expensive is capped per user id, with the IP caps left as a backstop.
 - **`budgetGuard.ts`** — daily spend estimate + circuit breaker; trips at `DAILY_BUDGET_USD`.
 - **`handler.ts`** — wraps every endpoint: CORS, method check, rate limit, error → JSON. `withStreamHandler` is the SSE sibling for `/api/ai-notes` (same gate, streams events instead of one body; runs on the normal Node runtime — streaming does not need the edge runtime).
 - **`providers/`** — `rentcast` (listings), `google` (geocode + commute via Routes), `places` (ratings + `fetchNearbyPlaces` for AI notes).
-- **`ai/`** — `gemma.ts` (Gemma 4 over the Gemini API, one tool-calling turn per call, capped at 4 turns), `tools.ts` (the three lookups the model can run, each wrapping an existing provider), and `throughput.ts` (global admission control). Gemma is free-tier only, so the quota is shared by every user of the app: a measured run costs ~2,500 tokens across 2 model calls, and the free tier allows ~15,000 tokens/minute project-wide — about six runs a minute for everyone combined. `throughput.ts` admits five per rolling minute and queues the rest for up to a minute, so a burst of clicks comes out slower rather than half-failing. `/api/ai-notes` also caps each IP at 25 runs a day.
+- **`ai/`** — `gemma.ts` (Gemma 4 over the Gemini API, one tool-calling turn per call, capped at 4 turns), `tools.ts` (the three lookups the model can run, each wrapping an existing provider), and `throughput.ts` (global admission control). Gemma is free-tier only, so the quota is shared by every user of the app: a measured run costs ~2,500 tokens across 2 model calls, and the free tier allows ~15,000 tokens/minute project-wide — about six runs a minute for everyone combined. `throughput.ts` admits five per rolling minute and queues the rest for up to a minute, so a burst of clicks comes out slower rather than half-failing. `/api/ai-notes` requires a signed-in user and caps each user at 5 runs a minute and 25 a day, plus a 60/day per-IP backstop for one origin driving many accounts.
 - **`ratings.ts`** — blends external + first-party reviews (first-party empty until Phase 2).
 - **`orchestrate.ts`** — the `/api/search` flow; reuses the SAME `src/lib/scoring.ts` as the client.
 
@@ -38,10 +38,14 @@ shared server code.
    Places API (New) enabled.
 2. (Recommended) Set `UPSTASH_REDIS_REST_URL` + `_TOKEN` so cache + rate limits
    are durable across invocations. This matters more for AI notes than anything
-   else: without it the per-IP daily cap resets whenever a function instance is
-   recycled.
+   else: without it the per-user daily cap resets whenever a function instance is
+   recycled, which in practice means it does not exist.
 3. For AI notes, set `GEMINI_API_KEY` (from aistudio.google.com) and apply the
    `0011_ai_notes.sql` migration. Without the key the endpoint returns 503.
+   The endpoint also requires a signed-in caller, so `SUPABASE_URL` (or
+   `VITE_SUPABASE_URL`) and `SUPABASE_SERVICE_ROLE_KEY` must be set — they're
+   what verifies the caller's JWT. Without them every run returns 503, and the
+   per-user limits have no identity to key on.
 4. Set the client's `VITE_DATA_SOURCE=api` and redeploy.
 
 ## Local development

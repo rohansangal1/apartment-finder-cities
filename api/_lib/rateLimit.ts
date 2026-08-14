@@ -87,3 +87,30 @@ export async function enforceDailyQuota(
   const used = await getLimiter().count(`q:${feature}:${ip || 'unknown'}:${day}`, 86_400);
   if (used > max) throw new HttpError(429, message);
 }
+
+/**
+ * The same counter, keyed on a signed-in user id instead of an IP.
+ *
+ * Worth having *alongside* the IP caps rather than instead of them, because the
+ * two stop different things. An IP is not an identity: it's shared by everyone
+ * behind a campus NAT (so an IP cap punishes innocents) and it's a few cents an
+ * hour to rotate through a proxy pool (so an IP cap barely inconveniences anyone
+ * deliberate). A verified user id is the only key here an attacker can't cycle
+ * without paying the cost of creating accounts.
+ *
+ * `windowSec` picks the shape: 60 for a burst limit, 86_400 for a daily budget.
+ * Windows are fixed rather than sliding, matching `enforceRateLimit` — so a
+ * caller can land up to 2x `max` across a boundary. That's tolerable because the
+ * throughput queue, not this, is what actually protects the model quota.
+ */
+export async function enforceUserQuota(
+  feature: string,
+  userId: string,
+  max: number,
+  windowSec: number,
+  message: string
+): Promise<void> {
+  const bucket = Math.floor(Date.now() / 1000 / windowSec);
+  const used = await getLimiter().count(`q:${feature}:u:${userId}:${bucket}`, windowSec);
+  if (used > max) throw new HttpError(429, message);
+}

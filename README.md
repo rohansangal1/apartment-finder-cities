@@ -186,3 +186,33 @@ property, along with monotonicity and the 0–100 bounds.
 Deployed on Vercel. `vercel.json` includes the SPA rewrite. The static SPA needs
 no secrets; live data and accounts turn on by adding the env vars above in the
 Vercel project settings.
+
+### Security headers
+
+`vercel.json` sets HSTS, `nosniff`, `X-Frame-Options`, `Referrer-Policy`, a
+`Permissions-Policy` denying hardware we never use, and a CSP. JSON takes no
+comments, so the CSP allowlist is explained here — every entry exists for one
+concrete dependency, and removing the dependency should mean removing the entry:
+
+| Directive | Why |
+| --- | --- |
+| `script-src accounts.google.com gstatic.com` | Google Identity Services (`google-signin-button.tsx`) loads `gsi/client` in-page. |
+| `style-src 'unsafe-inline'` | Leaflet and React both set inline styles. Not removable without dropping the map. |
+| `style-src`/`font-src fonts.googleapis.com`/`fonts.gstatic.com` | The Inter webfont, linked from `index.html`. |
+| `img-src https:` | Listing photos come from whatever CDN the upstream provider uses — the hosts aren't known ahead of time. |
+| `connect-src *.supabase.co` | Auth + data. Wildcarded because the project URL is an env var, not a build constant. |
+| `frame-src accounts.google.com` | GIS renders its button and FedCM prompt in an iframe. |
+
+`frame-ancestors 'none'` is the pair to `X-Frame-Options: DENY` — nothing embeds
+this app.
+
+HSTS deliberately omits `preload`. Preloading is a domain-wide, effectively
+irreversible commitment baked into browsers, so it should be a deliberate
+decision once a custom domain is settled, not a default.
+
+**Changing the CSP requires a preview deploy to verify.** `vite preview` does not
+apply `vercel.json` headers, so a broken policy will not show up locally. Smoke
+test on a preview URL: the map tiles, Google sign-in, the webfont, and listing
+photos. If something breaks, switching the key to
+`Content-Security-Policy-Report-Only` downgrades it to console warnings while you
+find the missing origin.

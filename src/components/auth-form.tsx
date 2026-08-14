@@ -15,6 +15,7 @@ export default function AuthForm() {
   const {
     enabled,
     status,
+    expiredMessage,
     signInWithGoogle,
     signUpWithPassword,
     signInWithPassword,
@@ -172,6 +173,14 @@ export default function AuthForm() {
           <p className="text-xs text-slate-400">At least 8 characters.</p>
         )}
 
+        {/* Why they're looking at a sign-in form again. Shown above the
+            submit button, where it explains the action they're about to take,
+            and only until the next successful sign-in. */}
+        {expiredMessage && !error && (
+          <p role="status" className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-600">
+            {expiredMessage}
+          </p>
+        )}
         {error && <p className="text-sm text-rose-600">{error}</p>}
         {notice && <p className="text-sm text-emerald-600">{notice}</p>}
 

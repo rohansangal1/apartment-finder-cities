@@ -19,6 +19,17 @@ import {
 } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseEnabled } from '../lib/supabase';
+import {
+  beginOrResume,
+  clearMarks,
+  expiryMessage,
+  expiryReason,
+  readMarks,
+  writeMarks,
+} from '../lib/session-timeout';
+
+/** How often the idle/absolute limits are re-checked. */
+const SESSION_CHECK_INTERVAL_MS = 30 * 1000;
 
 type AuthStatus = 'loading' | 'signed-in' | 'signed-out';
 
@@ -46,6 +57,13 @@ interface AuthContextValue {
   enabled: boolean;
   user: User | null;
   status: AuthStatus;
+  /**
+   * Set when a session was ended by the idle or absolute limit, so the sign-in
+   * screen can say why. Being dropped to signed-out with no explanation reads
+   * as a bug, and users respond to it by distrusting the app, not by signing
+   * back in. Cleared on the next successful sign-in.
+   */
+  expiredMessage: string | null;
   signInWithGoogle: () => Promise<void>;
   /** Exchange a Google Identity Services credential for a Supabase session.
    * Preferred over signInWithGoogle — see google-signin-button.tsx. */
@@ -61,6 +79,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<AuthStatus>(isSupabaseEnabled ? 'loading' : 'signed-out');
+  const [expiredMessage, setExpiredMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -73,10 +92,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setStatus(session?.user ? 'signed-in' : 'signed-out');
+      // Signing back in answers the "why was I signed out?" notice.
+      if (session?.user) setExpiredMessage(null);
     });
 
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  /**
+   * Enforce the idle and absolute session limits (see lib/session-timeout.ts).
+   *
+   * The check is a poll rather than a single scheduled `setTimeout` because a
+   * timeout scheduled for 30 minutes out does not fire reliably: browsers
+   * throttle timers in background tabs, and a laptop that sleeps loses the
+   * schedule entirely. Comparing wall-clock timestamps on a tick is immune to
+   * both — the machine can sleep for hours and the very next tick still sees an
+   * expired session.
+   */
+  useEffect(() => {
+    if (!supabase || !user) return;
+
+    // Signing in starts a window; a reload resumes the existing one, so the
+    // absolute limit measures from the real sign-in rather than the last reload.
+    writeMarks(beginOrResume(Date.now()));
+
+    // Activity only stamps a timestamp — deliberately cheap, since these fire
+    // constantly. Passive listeners keep them off the scroll path.
+    const noteActivity = () => {
+      const marks = readMarks();
+      if (marks) writeMarks({ ...marks, lastActivityAt: Date.now() });
+    };
+    const events = ['pointerdown', 'keydown', 'scroll', 'focus'] as const;
+    for (const e of events) window.addEventListener(e, noteActivity, { passive: true });
+
+    const check = async () => {
+      const marks = readMarks();
+      if (!marks) return;
+      const reason = expiryReason(Date.now(), marks);
+      if (!reason) return;
+      clearMarks();
+      setExpiredMessage(expiryMessage(reason));
+      await supabase!.auth.signOut();
+    };
+
+    // Also check the moment a hidden tab is revealed, so a session that expired
+    // while the machine slept is gone before anything renders as signed in.
+    document.addEventListener('visibilitychange', check);
+    const interval = window.setInterval(check, SESSION_CHECK_INTERVAL_MS);
+    void check();
+
+    return () => {
+      for (const e of events) window.removeEventListener(e, noteActivity);
+      document.removeEventListener('visibilitychange', check);
+      window.clearInterval(interval);
+    };
+  }, [user]);
 
   /**
    * The in-page Google path: the browser already holds a Google ID token, so we
@@ -180,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enabled: isSupabaseEnabled,
     user,
     status,
+    expiredMessage,
     signInWithGoogle,
     signInWithGoogleIdToken,
     signUpWithPassword,

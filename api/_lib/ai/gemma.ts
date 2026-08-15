@@ -29,6 +29,17 @@ const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
  */
 const MAX_TURNS = 4;
 
+/**
+ * Hard ceiling on one model round-trip, covering the streamed body and not just
+ * the initial response — a stalled stream is exactly the failure worth cutting.
+ *
+ * Without this a hung upstream holds the function until Vercel's 300s limit
+ * while still occupying a slot in the throughput window, so one stuck request
+ * blocks a fifth of the app's capacity for five minutes. A turn that has taken
+ * 60s is not going to produce useful notes anyway.
+ */
+const REQUEST_TIMEOUT_MS = 60_000;
+
 /** A Gemini API content part — text, a tool request, or a tool result. */
 type Part =
   | { text: string }
@@ -76,8 +87,28 @@ export async function generateTurn({
 }: GenerateOptions): Promise<Turn> {
   const apiKey = requireEnv('GEMINI_API_KEY');
 
+  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  try {
+    return await runTurn(apiKey, timeout, { system, contents, tools, onToken });
+  } catch (err) {
+    // The abort surfaces as a TimeoutError from whichever await was in flight —
+    // the fetch or a stream read — so it's caught here rather than at each one.
+    // Checking the signal, not the error name, keeps it true either way.
+    if (timeout.aborted) {
+      throw new HttpError(504, 'The model took too long to respond. Please try again.');
+    }
+    throw err;
+  }
+}
+
+async function runTurn(
+  apiKey: string,
+  timeout: AbortSignal,
+  { system, contents, tools, onToken }: GenerateOptions
+): Promise<Turn> {
   const res = await fetch(`${BASE}/${MODEL}:streamGenerateContent?alt=sse`, {
     method: 'POST',
+    signal: timeout,
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },

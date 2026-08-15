@@ -22,17 +22,24 @@
  * Gates run cheapest-first, so a flood is refused before it spends anything:
  *
  *   1. per-IP per-minute   (withStreamHandler, blanket — no I/O)
- *   2. auth                (requireUserId → 401)
- *   3. per-user per-minute (burst control)
- *   4. per-user per-day    (budget control)
- *   5. per-IP per-day      (backstop against many throwaway accounts)
- *   6. global throughput   (awaitModelSlot — project-wide token ceiling)
+ *   2. same-origin         (assertSameOrigin — CSRF, header check only)
+ *   3. auth                (requireUserId → 401)
+ *   4. per-user per-minute (burst control)
+ *   5. per-user per-day    (budget control)
+ *   6. per-IP per-day      (backstop against many throwaway accounts)
+ *   7. global throughput   (awaitModelSlot — project-wide token ceiling)
+ *
+ * Those bound how OFTEN a run can start. What bounds how much one run can COST
+ * is separate and just as necessary: the listing arrives in the request body, so
+ * every field of it is clamped before it reaches the prompt (see `clean`), the
+ * model call has a hard timeout, and MAX_TURNS caps the round-trips.
  */
 import type { VercelRequest } from '@vercel/node';
 import { withStreamHandler, type Emit } from './_lib/handler.js';
 import { HttpError, AI_RATE_LIMIT_MAX, AI_RATE_LIMIT_WINDOW_SEC } from './_lib/env.js';
 import { enforceDailyQuota, enforceUserQuota } from './_lib/rateLimit.js';
 import { requireUserId } from './_lib/supabase-admin.js';
+import { assertSameOrigin } from './_lib/session.js';
 import { generateTurn, MAX_TURNS, MODEL, type Content } from './_lib/ai/gemma.js';
 import { declarationsFor, runTool, type ToolContext } from './_lib/ai/tools.js';
 import { awaitModelSlot } from './_lib/ai/throughput.js';
@@ -47,6 +54,8 @@ const DAILY_MAX = 25;
  * DAILY_MAX: a household or an office sharing one NAT is normal traffic.
  */
 const IP_DAILY_MAX = 60;
+
+const COMMUTE_MODES: CommuteMode[] = ['walk', 'transit', 'bike', 'drive'];
 
 const SYSTEM_PROMPT = `You are helping someone decide whether an apartment is worth their time.
 
@@ -65,19 +74,59 @@ A two-sentence take on the place.
 
 Plain, direct language. No sales copy, no "nestled in the heart of".`;
 
+/**
+ * Every field below arrives in the request body, so it is caller-controlled text
+ * heading straight into a prompt. Clamping it matters for two reasons:
+ *
+ *   Cost. Gemma's free tier is capped per *minute*, project-wide. One request
+ *   carrying a megabyte-long "address" would spend that whole minute for
+ *   everyone, and none of the counters above would notice — a request is one
+ *   request however large it is. The quota gates limit how *often* you can call;
+ *   this is what limits how *much* a single call can cost.
+ *
+ *   Injection. Newlines and control characters let a crafted field break out of
+ *   its `Address: …` line and read as instructions. It can only ever steer the
+ *   caller's own notes — there is nothing in the context belonging to anyone
+ *   else, and no secret in the system prompt — so this is untidiness rather than
+ *   a breach. The same truncation closes it either way.
+ */
+function clean(value: unknown, max = 200): string {
+  if (typeof value !== 'string') return '';
+  // eslint-disable-next-line no-control-regex
+  return value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, max);
+}
+
+/** A number we're willing to print, or null. Rejects NaN, Infinity and junk. */
+function num(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 /** Compact the listing into the prompt. Only fields we actually have. */
 function describeListing(l: Listing): string {
+  const rent = num(l.rentMonthly);
+  const beds = num(l.bedrooms);
+  const rating = num(l.ratingValue);
+  // Tags are a caller-supplied array, so cap the count as well as each entry —
+  // a thousand short tags cost the same as one long one.
+  const tags = (Array.isArray(l.tags) ? l.tags : [])
+    .slice(0, 8)
+    .map((t) => clean(t, 40))
+    .filter(Boolean);
+
   const lines = [
-    `Address: ${l.address}`,
-    l.neighborhood ? `Neighborhood: ${l.neighborhood}` : null,
-    `City: ${l.city}`,
-    `Rent: $${l.rentMonthly}/month`,
-    `Bedrooms: ${l.bedrooms}`,
-    l.tags.length ? `Property type / tags: ${l.tags.join(', ')}` : null,
-    l.ratingValue != null ? `Building rating: ${l.ratingValue} (${l.ratingSource})` : null,
+    `Address: ${clean(l.address)}`,
+    l.neighborhood ? `Neighborhood: ${clean(l.neighborhood)}` : null,
+    `City: ${clean(l.city, 100)}`,
+    rent != null ? `Rent: $${Math.round(rent)}/month` : null,
+    beds != null ? `Bedrooms: ${beds}` : null,
+    tags.length ? `Property type / tags: ${tags.join(', ')}` : null,
+    rating != null ? `Building rating: ${rating} (${clean(l.ratingSource, 60)})` : null,
   ];
   return lines.filter(Boolean).join('\n');
 }
+
+/** Exported for tests — the input clamps are the part worth pinning down. */
+export const __test = { clean, describeListing };
 
 interface RequestBody {
   listing?: Listing;
@@ -85,12 +134,17 @@ interface RequestBody {
   commuteMode?: CommuteMode;
 }
 
-export default withStreamHandler('POST', async (req: VercelRequest, emit: Emit) => {
+export default withStreamHandler('POST', async (req: VercelRequest, emit: Emit, res) => {
+  // Cookie-authenticated and it spends a shared quota, so another site making
+  // the browser fire this off is a real cost even though it could never read the
+  // stream back. Same gate as /api/data, for the same reason.
+  assertSameOrigin(req);
+
   // Auth before anything else. It's the only gate that establishes *who* is
   // spending, so every limit below is keyed off its result — and it runs before
   // the body is even parsed, so an unauthenticated flood costs us one token
   // verification and nothing more.
-  const userId = await requireUserId(req);
+  const userId = await requireUserId(req, res);
 
   // Burst, then budget. Both are keyed on the verified user id.
   await enforceUserQuota(
@@ -127,10 +181,19 @@ export default withStreamHandler('POST', async (req: VercelRequest, emit: Emit) 
     throw new HttpError(400, 'A listing with coordinates is required.');
   }
 
+  // The work address reaches both the prompt and Google's geocoder, so it gets
+  // the same clamp as the listing fields. 200 characters is longer than any real
+  // postal address.
+  const workAddress = clean(body.workAddress);
+
   const ctx: ToolContext = {
     listing,
-    workAddress: body.workAddress?.trim() || undefined,
-    commuteMode: body.commuteMode ?? 'transit',
+    workAddress: workAddress || undefined,
+    // Allowlisted rather than passed through: it reaches Google Routes as a
+    // travel mode, and an unrecognised value there is an error, not a default.
+    commuteMode: COMMUTE_MODES.includes(body.commuteMode as CommuteMode)
+      ? (body.commuteMode as CommuteMode)
+      : 'transit',
   };
   const tools = declarationsFor(ctx);
 

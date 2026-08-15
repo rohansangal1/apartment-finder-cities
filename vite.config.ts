@@ -24,5 +24,11 @@ export default defineConfig({
     globals: true,
     // api/ is serverless code with its own tsconfig and no runtime here.
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // Pin the data source rather than inheriting it from a developer's .env.
+    // Vite loads .env into tests too, so a machine with VITE_DATA_SOURCE=api
+    // sent the mock-client suite at a real endpoint and failed — while CI, with
+    // no .env, passed. A suite whose result depends on untracked local files
+    // tells you nothing.
+    env: { VITE_DATA_SOURCE: 'mock' },
   },
 });

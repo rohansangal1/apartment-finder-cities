@@ -1,0 +1,50 @@
+# Typecheck, test and build on every push and pull request.
+#
+# GitHub picks this up automatically from .github/workflows/. No secrets are
+# needed and none are exposed: the test suite pins VITE_DATA_SOURCE=mock (see
+# vite.config.ts) so it runs entirely against local fixtures — no RentCast,
+# Google or Gemini calls, and nothing to bill.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# A new push to the same branch makes the previous run irrelevant — cancel it
+# rather than queueing behind work nobody is waiting on.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches the Node 24 LTS the Vercel functions run on, so a syntax or
+          # API difference shows up here rather than in production.
+          node-version: '24'
+          cache: npm
+
+      # ci, not install: installs exactly the locked versions and fails if
+      # package.json and the lockfile disagree.
+      - run: npm ci
+
+      # Covers both projects — the React app and the serverless functions under
+      # api/, which have their own tsconfig and are not in the app's references.
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # A green suite still lets a broken production build through — the app
+      # build runs tsc -b and the bundler over code the tests never import.
+      - name: Build
+        run: npm run build

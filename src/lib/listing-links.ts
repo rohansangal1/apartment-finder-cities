@@ -30,9 +30,8 @@ export function isListingStale(listing: Listing, now: number = Date.now()): bool
 }
 
 /**
- * Graceful link-rot handling for Zillow specifically. If a listingUrl is
- * known-stale (or missing) we degrade to a Zillow SEARCH url built from the
- * address rather than ever showing a broken deep link.
+ * Graceful link-rot handling. If a listingUrl is known-stale (or missing) we
+ * degrade to an address SEARCH rather than ever showing a broken deep link.
  */
 export function resolveListingUrl(
   listing: Listing,
@@ -41,32 +40,25 @@ export function resolveListingUrl(
   if (listing.listingUrl && !isStale) {
     return { url: listing.listingUrl, isFallback: false };
   }
-  return { url: buildZillowSearch(listing), isFallback: true };
+  return { url: buildFallbackSearch(listing), isFallback: true };
 }
 
-function buildZillowSearch(listing: Listing): string {
-  // We often don't know which site actually hosts the listing (aggregators like
-  // RentCast don't always give a canonical URL). Rather than a generic web
-  // search, deep-link into Zillow's rental search for the *specific address* —
-  // the dominant rental portal, so this surfaces the real listing (or the closest
-  // live one) far more often than a Google query, and never a dead detail page.
-  const slug = addressSlug(`${listing.address} ${listing.city}`);
-  if (slug) return `https://www.zillow.com/homes/for_rent/${slug}_rb/`;
+function buildFallbackSearch(listing: Listing): string {
+  // We usually don't know which site actually hosts the listing (aggregators
+  // like RentCast rarely give a canonical URL). We previously guessed a Zillow
+  // slug route (`/homes/for_rent/<slug>_rb/`), but that isn't a real Zillow
+  // search path and routinely landed on an empty/broken page. A plain Google
+  // search of the full address reliably surfaces the actual unit on whichever
+  // portal hosts it (Zillow, Apartments.com, the property's own site) — far more
+  // dependable than guessing one portal's URL scheme, and never a dead page.
+  const query = `${listing.address} ${listing.city}`.trim();
+  if (query) {
+    const q = encodeURIComponent(`${query} apartment for rent`);
+    return `https://www.google.com/search?q=${q}`;
+  }
 
   // No usable address text — fall back to a precise map pin for the coordinates.
   return `https://www.google.com/maps/search/?api=1&query=${listing.lat},${listing.lng}`;
-}
-
-/**
- * Turn a free-form address into Zillow's URL slug form: alphanumerics kept,
- * runs of anything else collapsed to single hyphens (e.g. "123 Main St, Austin
- * TX" -> "123-Main-St-Austin-TX"). Returns '' when nothing usable remains.
- */
-function addressSlug(raw: string): string {
-  return raw
-    .trim()
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 /**

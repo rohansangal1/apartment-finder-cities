@@ -12,10 +12,12 @@ import Tag from '../components/tag';
 import SaveButton from '../components/save-button';
 import ReviewForm from '../components/review-form';
 import TrueCostCalculator from '../components/true-cost-calculator';
+import MoveInCostEstimator from '../components/move-in-cost-estimator';
 import { affordability } from '../lib/affordability';
 import { formatRent, formatBeds, sourceLabel } from '../lib/format';
 import { resolveListingUrl, isListingStale } from '../lib/listing-links';
 import ListingLinks from '../components/listing-links';
+import AiNotesButton from '../components/ai-notes-button';
 
 const ALL_MODES: CommuteMode[] = ['walk', 'transit', 'bike', 'drive'];
 
@@ -126,7 +128,9 @@ export default function DetailView() {
       <div className="card p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-900">{listing.neighborhood}</h1>
+            <h1 className="text-xl font-bold text-slate-900">
+              {listing.neighborhood || listing.address || listing.city}
+            </h1>
             <p className="text-sm text-slate-500">
               {listing.address}, {listing.city}
             </p>
@@ -185,7 +189,7 @@ export default function DetailView() {
           rel="noopener noreferrer"
           className="btn-outline mt-5 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-base"
         >
-          View listing on {sourceLabel(listing.source)}
+          {isFallback ? 'Search for this listing' : `View listing on ${sourceLabel(listing.source)}`}
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M7 17 17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
@@ -200,6 +204,18 @@ export default function DetailView() {
         {/* Other rental portals to cross-check (all sites where applicable). */}
         <ListingLinks listing={listing} isStale={stale} className="mt-3 justify-center" />
       </div>
+
+      {/* AI notes — the trigger, or the notes once they've been generated. */}
+      <section className="card p-5">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+          Notes on this place
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Gemma 4 looks up what's nearby, how the rent compares, and the commute, then writes it up.
+          Once generated, the notes stay on this listing — including in Saved.
+        </p>
+        <AiNotesButton listing={listing} />
+      </section>
 
       {/* Match-score breakdown */}
       {matchScore != null && (
@@ -227,6 +243,9 @@ export default function DetailView() {
         commuteMode={criteria.commuteMode}
         oneWayMinutes={criteria.inPerson ? commuteMinutes : 0}
       />
+
+      {/* Upfront cost to move in (one-time) — sibling to True Cost (monthly). */}
+      <MoveInCostEstimator rent={listing.rentMonthly} />
 
       {/* Commute breakdown */}
       <section className="card p-5">

@@ -152,7 +152,7 @@ export default function SavedView() {
                     Leasebreak appear only for NYC listings). */}
                 <ListingLinks listing={l} isStale={stale} className="mt-2" />
                 <NoteEditor listingId={l.id} note={s.note} />
-                <AiNotesButton />
+                <AiNotesButton listing={l} />
                 <DocumentSection listingId={l.id} />
               </li>
             );

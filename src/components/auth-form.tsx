@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../context/auth-context';
+import GoogleSignInButton from './google-signin-button';
+
+const GOOGLE_CLIENT_ID = import.meta.env?.VITE_GOOGLE_CLIENT_ID || '';
 
 /**
  * Self-service auth panel: create an account with first/last/email/password or
@@ -12,6 +15,7 @@ export default function AuthForm() {
   const {
     enabled,
     status,
+    expiredMessage,
     signInWithGoogle,
     signUpWithPassword,
     signInWithPassword,
@@ -169,6 +173,14 @@ export default function AuthForm() {
           <p className="text-xs text-slate-400">At least 8 characters.</p>
         )}
 
+        {/* Why they're looking at a sign-in form again. Shown above the
+            submit button, where it explains the action they're about to take,
+            and only until the next successful sign-in. */}
+        {expiredMessage && !error && (
+          <p role="status" className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-600">
+            {expiredMessage}
+          </p>
+        )}
         {error && <p className="text-sm text-rose-600">{error}</p>}
         {notice && <p className="text-sm text-emerald-600">{notice}</p>}
 
@@ -203,16 +215,24 @@ export default function AuthForm() {
         <span className="h-px flex-1 bg-slate-200" />
       </div>
 
-      <button
-        type="button"
-        onClick={() => void signInWithGoogle()}
-        disabled={disabled}
-        title={enabled ? 'Sign in with Google' : 'Configure Supabase to enable'}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-ink px-4 py-3 text-sm font-semibold text-slate-700 transition enabled:hover:bg-slate-50 disabled:text-slate-400"
-      >
-        <GoogleGlyph />
-        Continue with Google
-      </button>
+      {/* Google Identity Services when a client id is configured: it keeps the
+          whole flow on this origin, so Google's account chooser names this app
+          instead of the Supabase project host. Without the env var we fall back
+          to the redirect flow, which still works. */}
+      {enabled && GOOGLE_CLIENT_ID ? (
+        <GoogleSignInButton clientId={GOOGLE_CLIENT_ID} />
+      ) : (
+        <button
+          type="button"
+          onClick={() => void signInWithGoogle()}
+          disabled={disabled}
+          title={enabled ? 'Sign in with Google' : 'Configure Supabase to enable'}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-ink px-4 py-3 text-sm font-semibold text-slate-700 transition enabled:hover:bg-slate-50 disabled:text-slate-400"
+        >
+          <GoogleGlyph />
+          Continue with Google
+        </button>
+      )}
     </div>
   );
 }

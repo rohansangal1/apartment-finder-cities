@@ -10,6 +10,7 @@ import SaveButton from './save-button';
 import { formatRent, formatBeds, formatCommute } from '../lib/format';
 import { resolveListingUrl, isListingStale, isNycListing } from '../lib/listing-links';
 import ListingLinks from './listing-links';
+import AiNotesButton from './ai-notes-button';
 import { allInMonthlyCost } from '../lib/true-cost';
 import { affordability } from '../lib/affordability';
 import type { DealScore } from '../lib/deal-score';
@@ -91,7 +92,9 @@ export default function ListingCard({
               state={linkState}
               className="block truncate text-base font-semibold text-slate-900 hover:text-brand-700"
             >
-              {listing.neighborhood}
+              {/* Neighborhood when we truly have one; otherwise the city, since the
+                  street address is already shown on the line below. */}
+              {listing.neighborhood || listing.city}
             </Link>
             <p className="truncate text-sm text-slate-500">{listing.address}</p>
           </div>
@@ -173,6 +176,10 @@ export default function ListingCard({
             {isNyc && <ListingLinks listing={listing} isStale={stale} />}
           </div>
         </details>
+
+        {/* AI notes: the trigger until a set exists, then the notes themselves
+            (collapsed, so a card with notes stays as scannable as one without). */}
+        <AiNotesButton listing={listing} variant="compact" className="mt-3" />
 
         <div className="mt-3 flex items-center gap-3">
           <Link

@@ -7,6 +7,7 @@
 import type { Review, NewReview, UserPreferences, SearchCriteria } from '../types';
 import type { UserStore, SavedListing, SavedSearch, SavedAddress } from './types';
 import type { SocialProfile } from '../social/types';
+import type { AiNotes } from '../ai-notes';
 import { getReviews as getMockReviews } from '../data-client';
 
 // v2: entries are full SavedListing snapshots, not bare ids. The old v1 key
@@ -16,6 +17,7 @@ const PREFS_KEY = 'nestle.prefs.v1';
 const SEARCHES_KEY = 'nestle.searches.v1';
 const ADDRESSES_KEY = 'nestle.addresses.v1';
 const SOCIAL_KEY = 'nestle.social.v1';
+const AI_NOTES_KEY = 'nestle.ainotes.v1';
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -56,6 +58,15 @@ export const localStore: UserStore = {
       r.listing.id === listingId ? { ...r, note } : r
     );
     writeJson(SAVED_KEY, rows);
+  },
+
+  async listAiNotes() {
+    return readJson<Record<string, AiNotes>>(AI_NOTES_KEY, {});
+  },
+
+  async saveAiNotes(listingId, notes) {
+    const all = readJson<Record<string, AiNotes>>(AI_NOTES_KEY, {});
+    writeJson(AI_NOTES_KEY, { ...all, [listingId]: notes });
   },
 
   async getPreferences() {
@@ -133,4 +144,13 @@ export const localStore: UserStore = {
 /** Drop all local saves — used after merging a guest shortlist into an account. */
 export function clearLocalSaved(): void {
   writeJson(SAVED_KEY, []);
+}
+
+/** Guest-mode AI notes, for the merge into an account on first sign-in. */
+export function readLocalAiNotes(): Record<string, AiNotes> {
+  return readJson<Record<string, AiNotes>>(AI_NOTES_KEY, {});
+}
+
+export function clearLocalAiNotes(): void {
+  writeJson(AI_NOTES_KEY, {});
 }

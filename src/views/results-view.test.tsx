@@ -54,6 +54,24 @@ vi.mock('../context/user-data-context', () => ({
     savedListings: [],
     isSaved: () => false,
     toggleSaved: vi.fn(),
+    // Cards render AI notes when a listing has them; none here.
+    aiNotes: {},
+    saveAiNotes: vi.fn(),
+  }),
+}));
+// Cards offer AI notes, which are gated on being signed in. Signed in here, so
+// these tests exercise the ordinary card and not the sign-in placeholder.
+vi.mock('../context/auth-context', () => ({
+  useAuth: () => ({
+    enabled: true,
+    user: { id: 'u1' },
+    status: 'signed-in',
+    signInWithGoogle: vi.fn(),
+    signInWithGoogleIdToken: vi.fn(),
+    signUpWithPassword: vi.fn(),
+    signInWithPassword: vi.fn(),
+    resetPassword: vi.fn(),
+    signOut: vi.fn(),
   }),
 }));
 vi.mock('../context/compare-context', () => ({

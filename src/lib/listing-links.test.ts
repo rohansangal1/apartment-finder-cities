@@ -62,18 +62,20 @@ describe('resolveListingUrl', () => {
   it('degrades to an address search when the listing is stale', () => {
     const { url, isFallback } = resolveListingUrl(listing(), true);
     expect(isFallback).toBe(true);
-    expect(url).toContain('zillow.com');
-    expect(url).toContain('123-Main-St');
+    expect(url).toContain('google.com/search');
+    // The full address is carried in the (URL-encoded) query.
+    expect(decodeURIComponent(url)).toContain('123 Main St');
+    expect(() => new URL(url)).not.toThrow();
   });
 
   it('degrades when there is no listing URL at all', () => {
     const { url, isFallback } = resolveListingUrl(listing({ listingUrl: '' }), false);
     expect(isFallback).toBe(true);
-    expect(url).toContain('zillow.com');
+    expect(url).toContain('google.com/search');
   });
 
-  it('falls back to a map pin when the address has nothing sluggable', () => {
-    const { url } = resolveListingUrl(listing({ listingUrl: '', address: '!!!', city: '???' }), false);
+  it('falls back to a map pin when there is no usable address at all', () => {
+    const { url } = resolveListingUrl(listing({ listingUrl: '', address: '', city: '' }), false);
     expect(url).toContain('google.com/maps');
     expect(url).toContain('37.78,-122.43');
   });

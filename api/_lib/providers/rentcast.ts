@@ -95,7 +95,10 @@ function mapListing(r: RentCastListing): Listing | null {
     // resolveListingUrl() falls back to a source-site search if this is empty.
     listingUrl: r.listingUrl || '',
     address,
-    neighborhood: r.city || '',
+    // RentCast has no neighborhood field. Leave it blank rather than copying the
+    // city in — a listing whose "neighborhood" is literally its city is
+    // misleading. The UI falls back to city/address for the title.
+    neighborhood: '',
     city: r.city || '',
     lat: r.latitude,
     lng: r.longitude,
